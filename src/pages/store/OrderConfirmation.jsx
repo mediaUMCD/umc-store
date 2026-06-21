@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import StoreHeader from '../../components/StoreHeader'
 
 export default function OrderConfirmation() {
   const { orderNumber } = useParams()
@@ -36,22 +37,32 @@ export default function OrderConfirmation() {
   }, [orderNumber])
 
   if (loading) {
-    return <div className="container"><p>Loading…</p></div>
+    return (
+      <div style={{ minHeight: '100vh' }}>
+        <StoreHeader />
+        <div className="container"><p>Loading…</p></div>
+      </div>
+    )
   }
 
   if (error) {
     return (
-      <div className="container" style={{ maxWidth: 600, textAlign: 'center', marginTop: 60 }}>
-        <div className="card">
-          <h2>{error}</h2>
-          <Link to="/" className="btn btn-primary">Return to Store</Link>
+      <div style={{ minHeight: '100vh' }}>
+        <StoreHeader />
+        <div className="container" style={{ maxWidth: 600, textAlign: 'center', marginTop: 60 }}>
+          <div className="card">
+            <h2>{error}</h2>
+            <Link to="/" className="btn btn-primary">Return to Store</Link>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="container" style={{ maxWidth: 700 }}>
+    <div style={{ minHeight: '100vh' }}>
+      <StoreHeader />
+      <div className="container" style={{ maxWidth: 700 }}>
       <div className="card" style={{ textAlign: 'center', marginBottom: 24, borderTop: '4px solid var(--color-wine)' }}>
         <h1 style={{ marginBottom: 4 }}>Thank You!</h1>
         <p style={{ margin: 0, opacity: 0.8 }}>Your order has been received.</p>
@@ -115,6 +126,7 @@ export default function OrderConfirmation() {
 
       <div style={{ textAlign: 'center' }}>
         <Link to="/" className="btn btn-secondary">Return to Store</Link>
+      </div>
       </div>
     </div>
   )

@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import StoreHeader from '../../components/StoreHeader'
+
+const STORAGE_BUCKET = 'store-designs'
 
 export default function StoreHome() {
   const [products, setProducts] = useState([])
+  const [previewImages, setPreviewImages] = useState({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -13,7 +17,44 @@ export default function StoreHome() {
         .select('*')
         .eq('active', true)
         .order('sort_order')
-      if (!error) setProducts(data)
+
+      if (error || !data) {
+        setLoading(false)
+        return
+      }
+      setProducts(data)
+
+      // Grab one design image per product (if any) to use as a card preview
+      const productIds = data.map((p) => p.id)
+      if (productIds.length > 0) {
+        const { data: designLinks } = await supabase
+          .from('design_products')
+          .select('product_id, design_id')
+          .in('product_id', productIds)
+
+        const designIds = [...new Set((designLinks || []).map((d) => d.design_id))]
+        if (designIds.length > 0) {
+          const { data: designs } = await supabase
+            .from('designs')
+            .select('id, image_path')
+            .in('id', designIds)
+            .eq('active', true)
+
+          const designImageById = {}
+          ;(designs || []).forEach((d) => {
+            designImageById[d.id] = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(d.image_path).data.publicUrl
+          })
+
+          const previews = {}
+          ;(designLinks || []).forEach((link) => {
+            if (!previews[link.product_id] && designImageById[link.design_id]) {
+              previews[link.product_id] = designImageById[link.design_id]
+            }
+          })
+          setPreviewImages(previews)
+        }
+      }
+
       setLoading(false)
     }
     loadProducts()
@@ -21,18 +62,10 @@ export default function StoreHome() {
 
   return (
     <div style={{ minHeight: '100vh' }}>
-      <header style={{
-        background: 'var(--color-wine-dark)',
-        color: 'white',
-        padding: '32px 24px',
-        textAlign: 'center',
-      }}>
-        <h1 style={{ color: 'white', fontSize: 32 }}>UMCD Church Store</h1>
-        <p style={{ margin: 0, opacity: 0.85 }}>United Methodist Church of Danielson</p>
-      </header>
+      <StoreHeader />
 
       <div className="container">
-        <div className="card" style={{ marginBottom: 24, textAlign: 'center' }}>
+        <div className="card" style={{ marginBottom: 28, textAlign: 'center' }}>
           <p style={{ margin: 0 }}>
             Browse our current fundraiser apparel below. Orders are collected here and <strong>paid for in person</strong> (cash, check, or Venmo) at pickup — no online payment required.
           </p>
@@ -45,32 +78,58 @@ export default function StoreHome() {
             <p>No items are available for order right now. Please check back soon!</p>
           </div>
         ) : (
-          <>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-              gap: 20,
-              marginBottom: 32,
-            }}>
-              {products.map((product) => (
-                <div key={product.id} className="card">
-                  <h3 style={{ marginBottom: 6 }}>{product.name}</h3>
-                  {product.description && (
-                    <p style={{ fontSize: 14, opacity: 0.75, marginBottom: 10 }}>{product.description}</p>
-                  )}
-                  <p style={{ fontWeight: 700, color: 'var(--color-wine)', marginBottom: 0 }}>
-                    Starting at ${Number(product.base_price).toFixed(2)}
-                  </p>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gap: 24,
+          }}>
+            {products.map((product) => (
+              <Link
+                key={product.id}
+                to={`/product/${product.id}`}
+                style={{ textDecoration: 'none', color: 'inherit' }}
+              >
+                <div className="card" style={{
+                  padding: 0,
+                  overflow: 'hidden',
+                  transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                  cursor: 'pointer',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}>
+                  <div style={{
+                    width: '100%',
+                    aspectRatio: '4 / 3',
+                    background: 'linear-gradient(135deg, var(--color-blush), var(--color-silver-light))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                  }}>
+                    {previewImages[product.id] ? (
+                      <img
+                        src={previewImages[product.id]}
+                        alt={product.name}
+                        style={{ maxWidth: '70%', maxHeight: '70%', objectFit: 'contain' }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: 48, opacity: 0.3 }}>👕</span>
+                    )}
+                  </div>
+                  <div style={{ padding: 18, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    <h3 style={{ marginBottom: 6, fontSize: 19 }}>{product.name}</h3>
+                    {product.description && (
+                      <p style={{ fontSize: 14, opacity: 0.75, marginBottom: 12, flex: 1 }}>{product.description}</p>
+                    )}
+                    <p style={{ fontWeight: 700, color: 'var(--color-wine)', marginBottom: 0, fontSize: 16 }}>
+                      Starting at ${Number(product.base_price).toFixed(2)}
+                    </p>
+                  </div>
                 </div>
-              ))}
-            </div>
-
-            <div style={{ textAlign: 'center' }}>
-              <Link to="/order" className="btn btn-primary" style={{ fontSize: 17, padding: '14px 32px' }}>
-                Start Your Order
               </Link>
-            </div>
-          </>
+            ))}
+          </div>
         )}
       </div>
     </div>

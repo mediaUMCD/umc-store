@@ -15,6 +15,7 @@ export default function AdminOrders() {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const [expandedId, setExpandedId] = useState(null)
   const [itemsByOrder, setItemsByOrder] = useState({})
 
@@ -54,32 +55,68 @@ export default function AdminOrders() {
     setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o)))
   }
 
-  const filteredOrders = statusFilter === 'all'
-    ? orders
-    : orders.filter((o) => o.status === statusFilter)
+  const filteredOrders = orders
+    .filter((o) => statusFilter === 'all' || o.status === statusFilter)
+    .filter((o) => {
+      if (!searchQuery.trim()) return true
+      const q = searchQuery.trim().toLowerCase()
+      return (
+        (o.customer_name || '').toLowerCase().includes(q) ||
+        (o.customer_email || '').toLowerCase().includes(q) ||
+        (o.customer_phone || '').toLowerCase().includes(q) ||
+        (o.order_number || '').toLowerCase().includes(q)
+      )
+    })
 
   return (
     <AdminLayout title="Orders">
-      <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
-        <label htmlFor="status-filter" style={{ marginBottom: 0 }}>Filter:</label>
-        <select
-          id="status-filter"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          style={{ maxWidth: 200 }}
-        >
-          <option value="all">All Statuses</option>
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-          ))}
-        </select>
+      <div style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <label htmlFor="status-filter" style={{ marginBottom: 0 }}>Filter:</label>
+          <select
+            id="status-filter"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{ maxWidth: 200 }}
+          >
+            <option value="all">All Statuses</option>
+            {STATUSES.map((s) => (
+              <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+            ))}
+          </select>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: '1 1 240px' }}>
+          <label htmlFor="order-search" style={{ marginBottom: 0 }}>Search:</label>
+          <input
+            id="order-search"
+            type="text"
+            placeholder="Name, email, phone, or order #"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ maxWidth: 320 }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ padding: '6px 12px', fontSize: 13 }}
+              onClick={() => setSearchQuery('')}
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="card">
         {loading ? (
           <p>Loading…</p>
         ) : filteredOrders.length === 0 ? (
-          <p>No orders found.</p>
+          <p>
+            {searchQuery || statusFilter !== 'all'
+              ? 'No orders match your search/filter.'
+              : 'No orders yet.'}
+          </p>
         ) : (
           <table>
             <thead>
