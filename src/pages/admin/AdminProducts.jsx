@@ -3,6 +3,7 @@ import AdminLayout from '../../components/AdminLayout'
 import { supabase } from '../../lib/supabase'
 
 const DEFAULT_SIZES = ['S', 'M', 'L', 'XL', '2XL']
+const PRODUCT_BUCKET = 'store-products'
 
 const emptyForm = {
   name: '',
@@ -19,17 +20,19 @@ export default function AdminProducts() {
   const [allColors, setAllColors] = useState([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(emptyForm)
-  const [selectedColorIds, setSelectedColorIds] = useState([])
+  // colorSelections: { [colorId]: { selected, existingPath, newFile, previewUrl } }
+  const [colorSelections, setColorSelections] = useState({})
   const [editingId, setEditingId] = useState(null)
   const [error, setError] = useState('')
   const [newSizeInput, setNewSizeInput] = useState('')
+  const [saving, setSaving] = useState(false)
 
   async function loadData() {
     setLoading(true)
     const [productsRes, colorsRes, productColorsRes] = await Promise.all([
       supabase.from('products').select('*').order('sort_order'),
       supabase.from('colors').select('*').eq('active', true).order('name'),
-      supabase.from('product_colors').select('product_id, color_id'),
+      supabase.from('product_colors').select('product_id, color_id, image_path'),
     ])
 
     if (productsRes.error) {
@@ -38,9 +41,9 @@ export default function AdminProducts() {
       const colorMap = {}
       ;(productColorsRes.data || []).forEach((pc) => {
         if (!colorMap[pc.product_id]) colorMap[pc.product_id] = []
-        colorMap[pc.product_id].push(pc.color_id)
+        colorMap[pc.product_id].push({ color_id: pc.color_id, image_path: pc.image_path })
       })
-      setProducts(productsRes.data.map((p) => ({ ...p, colorIds: colorMap[p.id] || [] })))
+      setProducts(productsRes.data.map((p) => ({ ...p, productColors: colorMap[p.id] || [] })))
     }
     setAllColors(colorsRes.data || [])
     setLoading(false)
@@ -50,9 +53,13 @@ export default function AdminProducts() {
     loadData()
   }, [])
 
+  function publicUrl(path) {
+    return supabase.storage.from(PRODUCT_BUCKET).getPublicUrl(path).data.publicUrl
+  }
+
   function resetForm() {
     setForm(emptyForm)
-    setSelectedColorIds([])
+    setColorSelections({})
     setEditingId(null)
     setNewSizeInput('')
   }
@@ -67,7 +74,16 @@ export default function AdminProducts() {
       size_price_overrides: product.size_price_overrides || {},
       active: product.active,
     })
-    setSelectedColorIds(product.colorIds || [])
+    const selections = {}
+    ;(product.productColors || []).forEach((pc) => {
+      selections[pc.color_id] = {
+        selected: true,
+        existingPath: pc.image_path || null,
+        newFile: null,
+        previewUrl: pc.image_path ? publicUrl(pc.image_path) : null,
+      }
+    })
+    setColorSelections(selections)
     setEditingId(product.id)
   }
 
@@ -98,9 +114,33 @@ export default function AdminProducts() {
   }
 
   function toggleColor(colorId) {
-    setSelectedColorIds((prev) =>
-      prev.includes(colorId) ? prev.filter((id) => id !== colorId) : [...prev, colorId]
-    )
+    setColorSelections((prev) => {
+      const current = prev[colorId]
+      if (current?.selected) {
+        // Deselect — keep the object but mark unselected
+        return { ...prev, [colorId]: { ...current, selected: false } }
+      }
+      return {
+        ...prev,
+        [colorId]: {
+          selected: true,
+          existingPath: current?.existingPath || null,
+          newFile: null,
+          previewUrl: current?.previewUrl || null,
+        },
+      }
+    })
+  }
+
+  function setColorPhoto(colorId, file) {
+    setColorSelections((prev) => ({
+      ...prev,
+      [colorId]: {
+        ...prev[colorId],
+        newFile: file,
+        previewUrl: file ? URL.createObjectURL(file) : (prev[colorId]?.existingPath ? publicUrl(prev[colorId].existingPath) : null),
+      },
+    }))
   }
 
   async function handleSubmit(e) {
@@ -120,6 +160,8 @@ export default function AdminProducts() {
       return
     }
 
+    setSaving(true)
+
     const payload = {
       name: form.name.trim(),
       product_type: form.product_type,
@@ -136,28 +178,51 @@ export default function AdminProducts() {
       const { error: updateError } = await supabase.from('products').update(payload).eq('id', editingId)
       if (updateError) {
         setError(updateError.message)
+        setSaving(false)
         return
       }
     } else {
       const { data, error: insertError } = await supabase.from('products').insert(payload).select().single()
       if (insertError) {
         setError(insertError.message)
+        setSaving(false)
         return
       }
       productId = data.id
     }
 
+    // Upload any new color photos, building the rows to insert
+    const selectedEntries = Object.entries(colorSelections).filter(([, v]) => v.selected)
+    const rows = []
+    for (const [colorId, sel] of selectedEntries) {
+      let imagePath = sel.existingPath || null
+      if (sel.newFile) {
+        const ext = sel.newFile.name.split('.').pop()
+        imagePath = `${productId}/${colorId}-${Date.now()}.${ext}`
+        const { error: uploadError } = await supabase.storage
+          .from(PRODUCT_BUCKET)
+          .upload(imagePath, sel.newFile, { upsert: true })
+        if (uploadError) {
+          setError(`Photo upload failed: ${uploadError.message}`)
+          setSaving(false)
+          return
+        }
+      }
+      rows.push({ product_id: productId, color_id: colorId, image_path: imagePath })
+    }
+
     // Sync product_colors join table
     await supabase.from('product_colors').delete().eq('product_id', productId)
-    if (selectedColorIds.length > 0) {
-      const rows = selectedColorIds.map((colorId) => ({ product_id: productId, color_id: colorId }))
+    if (rows.length > 0) {
       const { error: colorError } = await supabase.from('product_colors').insert(rows)
       if (colorError) {
         setError(`Product saved, but colors failed to save: ${colorError.message}`)
+        setSaving(false)
         return
       }
     }
 
+    setSaving(false)
     resetForm()
     loadData()
   }
@@ -277,32 +342,61 @@ export default function AdminProducts() {
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <label>Available Colors for This Product</label>
+            <label>Available Colors &amp; Photos for This Product</label>
+            <p style={{ fontSize: 13, opacity: 0.7, margin: '0 0 8px 0' }}>
+              Check each color this product comes in. Optionally upload a photo of the garment in that color — the store will show it when a customer selects that color.
+            </p>
             {allColors.length === 0 ? (
               <p style={{ fontSize: 14, opacity: 0.7 }}>No colors set up yet — add colors on the Colors page first.</p>
             ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                {allColors.map((color) => (
-                  <label key={color.id} style={{
-                    display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400,
-                    border: '1px solid var(--color-silver)', borderRadius: 'var(--radius)',
-                    padding: '6px 10px', cursor: 'pointer',
-                    background: selectedColorIds.includes(color.id) ? 'var(--color-blush)' : 'white',
-                  }}>
-                    <input
-                      type="checkbox"
-                      checked={selectedColorIds.includes(color.id)}
-                      onChange={() => toggleColor(color.id)}
-                      style={{ width: 'auto' }}
-                    />
-                    <span style={{
-                      width: 14, height: 14, borderRadius: '50%',
-                      background: color.hex_value || '#ccc', display: 'inline-block',
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {allColors.map((color) => {
+                  const sel = colorSelections[color.id]
+                  const isSelected = sel?.selected
+                  return (
+                    <div key={color.id} style={{
                       border: '1px solid var(--color-silver)',
-                    }} />
-                    {color.name}
-                  </label>
-                ))}
+                      borderRadius: 'var(--radius)',
+                      padding: '10px 12px',
+                      background: isSelected ? 'var(--color-blush)' : 'white',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400, cursor: 'pointer', marginBottom: 0 }}>
+                          <input
+                            type="checkbox"
+                            checked={!!isSelected}
+                            onChange={() => toggleColor(color.id)}
+                            style={{ width: 'auto' }}
+                          />
+                          <span style={{
+                            width: 16, height: 16, borderRadius: '50%',
+                            background: color.hex_value || '#ccc', display: 'inline-block',
+                            border: '1px solid var(--color-silver)',
+                          }} />
+                          {color.name}
+                        </label>
+
+                        {isSelected && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
+                            {sel?.previewUrl && (
+                              <img
+                                src={sel.previewUrl}
+                                alt={`${color.name} preview`}
+                                style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--color-silver)' }}
+                              />
+                            )}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => setColorPhoto(color.id, e.target.files?.[0] || null)}
+                              style={{ fontSize: 13, width: 'auto' }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -310,8 +404,8 @@ export default function AdminProducts() {
           {error && <p style={{ color: 'var(--color-danger)', fontSize: 14, marginBottom: 12 }}>{error}</p>}
 
           <div style={{ display: 'flex', gap: 8 }}>
-            <button type="submit" className="btn btn-primary">
-              {editingId ? 'Save Changes' : 'Add Product'}
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? 'Saving…' : editingId ? 'Save Changes' : 'Add Product'}
             </button>
             {editingId && (
               <button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button>
@@ -333,6 +427,7 @@ export default function AdminProducts() {
                 <th>Type</th>
                 <th>Base Price</th>
                 <th>Sizes</th>
+                <th>Colors</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -344,6 +439,7 @@ export default function AdminProducts() {
                   <td style={{ textTransform: 'capitalize' }}>{product.product_type}</td>
                   <td>${Number(product.base_price).toFixed(2)}</td>
                   <td>{(product.sizes || []).join(', ')}</td>
+                  <td>{(product.productColors || []).length}</td>
                   <td>{product.active ? 'Active' : 'Inactive'}</td>
                   <td>
                     <div style={{ display: 'flex', gap: 8 }}>

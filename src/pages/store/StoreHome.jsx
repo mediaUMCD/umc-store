@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import StoreHeader from '../../components/StoreHeader'
+import StoreFooter from '../../components/StoreFooter'
 
 const STORAGE_BUCKET = 'store-designs'
+const PRODUCT_BUCKET = 'store-products'
 
 export default function StoreHome() {
   const [products, setProducts] = useState([])
@@ -24,37 +26,53 @@ export default function StoreHome() {
       }
       setProducts(data)
 
-      // Grab one design image per product (if any) to use as a card preview
       const productIds = data.map((p) => p.id)
-      if (productIds.length > 0) {
-        const { data: designLinks } = await supabase
-          .from('design_products')
-          .select('product_id, design_id')
-          .in('product_id', productIds)
-
-        const designIds = [...new Set((designLinks || []).map((d) => d.design_id))]
-        if (designIds.length > 0) {
-          const { data: designs } = await supabase
-            .from('designs')
-            .select('id, image_path')
-            .in('id', designIds)
-            .eq('active', true)
-
-          const designImageById = {}
-          ;(designs || []).forEach((d) => {
-            designImageById[d.id] = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(d.image_path).data.publicUrl
-          })
-
-          const previews = {}
-          ;(designLinks || []).forEach((link) => {
-            if (!previews[link.product_id] && designImageById[link.design_id]) {
-              previews[link.product_id] = designImageById[link.design_id]
-            }
-          })
-          setPreviewImages(previews)
-        }
+      if (productIds.length === 0) {
+        setLoading(false)
+        return
       }
 
+      const previews = {}
+
+      // 1. Prefer a product color photo (first color that has one) per product
+      const { data: productColors } = await supabase
+        .from('product_colors')
+        .select('product_id, image_path')
+        .in('product_id', productIds)
+
+      ;(productColors || []).forEach((pc) => {
+        if (!previews[pc.product_id] && pc.image_path) {
+          previews[pc.product_id] = supabase.storage.from(PRODUCT_BUCKET).getPublicUrl(pc.image_path).data.publicUrl
+        }
+      })
+
+      // 2. Fall back to a design graphic for any product without a photo yet
+      const { data: designLinks } = await supabase
+        .from('design_products')
+        .select('product_id, design_id')
+        .in('product_id', productIds)
+
+      const designIds = [...new Set((designLinks || []).map((d) => d.design_id))]
+      if (designIds.length > 0) {
+        const { data: designs } = await supabase
+          .from('designs')
+          .select('id, image_path')
+          .in('id', designIds)
+          .eq('active', true)
+
+        const designImageById = {}
+        ;(designs || []).forEach((d) => {
+          designImageById[d.id] = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(d.image_path).data.publicUrl
+        })
+
+        ;(designLinks || []).forEach((link) => {
+          if (!previews[link.product_id] && designImageById[link.design_id]) {
+            previews[link.product_id] = designImageById[link.design_id]
+          }
+        })
+      }
+
+      setPreviewImages(previews)
       setLoading(false)
     }
     loadProducts()
@@ -132,6 +150,7 @@ export default function StoreHome() {
           </div>
         )}
       </div>
+      <StoreFooter />
     </div>
   )
 }

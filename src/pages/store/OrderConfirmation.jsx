@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import StoreHeader from '../../components/StoreHeader'
+import StoreFooter from '../../components/StoreFooter'
 
 export default function OrderConfirmation() {
   const { orderNumber } = useParams()
@@ -128,6 +129,7 @@ export default function OrderConfirmation() {
         <Link to="/" className="btn btn-secondary">Return to Store</Link>
       </div>
       </div>
+      <StoreFooter />
     </div>
   )
 }

@@ -3,8 +3,10 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useCart } from '../../lib/CartContext'
 import StoreHeader from '../../components/StoreHeader'
+import StoreFooter from '../../components/StoreFooter'
 
 const STORAGE_BUCKET = 'store-designs'
+const PRODUCT_BUCKET = 'store-products'
 
 export default function ProductDetail() {
   const { productId } = useParams()
@@ -45,12 +47,18 @@ export default function ProductDetail() {
 
       const [designProductsRes, productColorsRes, placementsRes] = await Promise.all([
         supabase.from('design_products').select('design_id').eq('product_id', productId),
-        supabase.from('product_colors').select('color_id').eq('product_id', productId),
+        supabase.from('product_colors').select('color_id, image_path').eq('product_id', productId),
         supabase.from('placements').select('*').eq('active', true).order('sort_order'),
       ])
 
       const designIds = (designProductsRes.data || []).map((d) => d.design_id)
       const colorIds = (productColorsRes.data || []).map((c) => c.color_id)
+      const photoByColorId = {}
+      ;(productColorsRes.data || []).forEach((c) => {
+        if (c.image_path) {
+          photoByColorId[c.color_id] = supabase.storage.from(PRODUCT_BUCKET).getPublicUrl(c.image_path).data.publicUrl
+        }
+      })
 
       const [designsRes, colorsRes] = await Promise.all([
         designIds.length > 0
@@ -65,7 +73,10 @@ export default function ProductDetail() {
         ...d,
         publicUrl: supabase.storage.from(STORAGE_BUCKET).getPublicUrl(d.image_path).data.publicUrl,
       })))
-      setColors(colorsRes.data || [])
+      setColors((colorsRes.data || []).map((c) => ({
+        ...c,
+        photoUrl: photoByColorId[c.id] || null,
+      })))
       setPlacements(placementsRes.data || [])
       setLoading(false)
     }
@@ -134,6 +145,7 @@ export default function ProductDetail() {
   }
 
   const selectedDesign = designs.find((d) => d.id === designId)
+  const selectedColorPhoto = colors.find((c) => c.id === colorId)?.photoUrl || null
 
   return (
     <div style={{ minHeight: '100vh' }}>
@@ -146,18 +158,49 @@ export default function ProductDetail() {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'start' }}>
           {/* Image preview */}
-          <div className="card" style={{
-            aspectRatio: '1 / 1',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'linear-gradient(135deg, var(--color-blush), var(--color-silver-light))',
-            overflow: 'hidden',
-          }}>
-            {selectedDesign ? (
-              <img src={selectedDesign.publicUrl} alt={selectedDesign.name} style={{ maxWidth: '75%', maxHeight: '75%', objectFit: 'contain' }} />
-            ) : (
-              <span style={{ fontSize: 72, opacity: 0.3 }}>👕</span>
+          <div>
+            <div className="card" style={{
+              aspectRatio: '1 / 1',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'linear-gradient(135deg, var(--color-blush), var(--color-silver-light))',
+              overflow: 'hidden',
+              position: 'relative',
+            }}>
+              {selectedColorPhoto ? (
+                <img src={selectedColorPhoto} alt={`${product.name}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : selectedDesign ? (
+                <img src={selectedDesign.publicUrl} alt={selectedDesign.name} style={{ maxWidth: '75%', maxHeight: '75%', objectFit: 'contain' }} />
+              ) : (
+                <span style={{ fontSize: 72, opacity: 0.3 }}>👕</span>
+              )}
+
+              {/* Design graphic thumbnail — shown in corner when a color photo is the main image */}
+              {selectedColorPhoto && selectedDesign && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: 12,
+                  right: 12,
+                  width: 72,
+                  height: 72,
+                  background: 'white',
+                  borderRadius: 'var(--radius)',
+                  border: '1px solid var(--color-silver)',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 6,
+                }}>
+                  <img src={selectedDesign.publicUrl} alt={selectedDesign.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                </div>
+              )}
+            </div>
+            {selectedColorPhoto && (
+              <p style={{ fontSize: 12, opacity: 0.6, textAlign: 'center', marginTop: 8 }}>
+                Showing: {colors.find((c) => c.id === colorId)?.name}
+              </p>
             )}
           </div>
 
@@ -263,6 +306,7 @@ export default function ProductDetail() {
           </div>
         </div>
       </div>
+      <StoreFooter />
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useCart } from '../../lib/CartContext'
 import StoreHeader from '../../components/StoreHeader'
+import StoreFooter from '../../components/StoreFooter'
 
 export default function Cart() {
   const { cart, removeItem, updateQuantity, clearCart, total } = useCart()
@@ -208,6 +209,7 @@ export default function Cart() {
           </form>
         )}
       </div>
+      <StoreFooter />
     </div>
   )
 }
