@@ -78,12 +78,6 @@ export default function ProductDetail() {
         photoUrl: photoByColorId[c.id] || null,
       })))
       setPlacements(placementsRes.data || [])
-
-      // Auto-select the first color so there's always a photo showing on load
-      if (colorsRes.data && colorsRes.data.length > 0) {
-        setColorId(colorsRes.data[0].id)
-      }
-
       setLoading(false)
     }
     loadData()
