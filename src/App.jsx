@@ -10,6 +10,7 @@ import AdminProducts from './pages/admin/AdminProducts'
 import AdminDesigns from './pages/admin/AdminDesigns'
 import AdminColors from './pages/admin/AdminColors'
 import AdminOrders from './pages/admin/AdminOrders'
+import PrintOrder from './pages/admin/PrintOrder'
 import RequireAdmin from './components/RequireAdmin'
 import './index.css'
 
@@ -63,6 +64,14 @@ export default function App() {
             element={
               <RequireAdmin>
                 <AdminOrders />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/admin/orders/:orderId/print"
+            element={
+              <RequireAdmin>
+                <PrintOrder />
               </RequireAdmin>
             }
           />

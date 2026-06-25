@@ -8,6 +8,7 @@ import StoreFooter from '../../components/StoreFooter'
 const STORAGE_BUCKET = 'store-designs'
 const PRODUCT_BUCKET = 'store-products'
 const SECOND_DESIGN_PRICE = 5.00 // ← change this to update the extra design charge
+const PERSONALIZATION_PRICE = 2.00 // ← change this to update the personalization charge
 
 export default function ProductDetail() {
   const { productId } = useParams()
@@ -26,6 +27,8 @@ export default function ProductDetail() {
   const [design2Id, setDesign2Id] = useState('')
   const [placement2, setPlacement2] = useState('')
   const [showSecondDesign, setShowSecondDesign] = useState(false)
+  const [personalizationText, setPersonalizationText] = useState('')
+  const [showPersonalization, setShowPersonalization] = useState(false)
   const [size, setSize] = useState('')
   const [colorId, setColorId] = useState('')
   const [quantity, setQuantity] = useState(1)
@@ -144,7 +147,8 @@ export default function ProductDetail() {
     const override = product.size_price_overrides?.[size]
     const garmentPrice = override !== undefined ? Number(override) : basePrice
     const secondDesignCharge = showSecondDesign && design2Id ? SECOND_DESIGN_PRICE : 0
-    const unitPrice = garmentPrice + secondDesignCharge
+    const personalizationCharge = showPersonalization && personalizationText.trim() ? PERSONALIZATION_PRICE : 0
+    const unitPrice = garmentPrice + secondDesignCharge + personalizationCharge
 
     const color = colors.find((c) => c.id === colorId)
     const design = designs.find((d) => d.id === designId)
@@ -160,6 +164,8 @@ export default function ProductDetail() {
       design2_name_snapshot: design2 ? design2.name : null,
       placement2: placement2 || null,
       second_design_price: secondDesignCharge,
+      personalization_text: (showPersonalization && personalizationText.trim()) ? personalizationText.trim() : null,
+      personalization_price: personalizationCharge,
       size,
       color: color ? color.name : '',
       quantity: Number(quantity),
@@ -169,7 +175,8 @@ export default function ProductDetail() {
 
     setJustAdded(true)
     setSize(''); setColorId(''); setDesignId(''); setPlacement('')
-    setDesign2Id(''); setPlacement2(''); setShowSecondDesign(false); setQuantity(1)
+    setDesign2Id(''); setPlacement2(''); setShowSecondDesign(false)
+    setPersonalizationText(''); setShowPersonalization(false); setQuantity(1)
   }
 
   if (loading) return (
@@ -371,6 +378,44 @@ export default function ProductDetail() {
               )}
             </div>
           )}
+
+          {/* Personalization */}
+          <div style={{ borderTop: '1px solid var(--color-silver)', paddingTop: 20, marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <label style={{ fontWeight: 700, fontSize: 15, marginBottom: 0 }}>Add Personalization?</label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400, cursor: 'pointer', marginBottom: 0 }}>
+                <input
+                  type="checkbox"
+                  checked={showPersonalization}
+                  onChange={(e) => {
+                    setShowPersonalization(e.target.checked)
+                    if (!e.target.checked) setPersonalizationText('')
+                  }}
+                  style={{ width: 'auto' }}
+                />
+                Yes — add personalized text (+${PERSONALIZATION_PRICE.toFixed(2)} per item)
+              </label>
+            </div>
+            <p style={{ fontSize: 12, opacity: 0.65, margin: '0 0 12px 0' }}>
+              Personalization is printed on the <strong>left chest or shoulder</strong> area and can be added alongside a left chest or shoulder design, or on its own.
+            </p>
+            {showPersonalization && (
+              <div style={{ maxWidth: 400 }}>
+                <label htmlFor="pd-personalization">Your Personalization Text</label>
+                <input
+                  id="pd-personalization"
+                  type="text"
+                  placeholder="e.g. John Smith, Pastor Zach, #42…"
+                  value={personalizationText}
+                  onChange={(e) => setPersonalizationText(e.target.value)}
+                  maxLength={50}
+                />
+                <p style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
+                  {personalizationText.length}/50 characters
+                </p>
+              </div>
+            )}
+          </div>
 
           {/* Quantity + cart */}
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../../components/AdminLayout'
 import { supabase } from '../../lib/supabase'
 
@@ -12,6 +13,7 @@ const STATUS_LABELS = {
 }
 
 export default function AdminOrders() {
+  const navigate = useNavigate()
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
@@ -141,13 +143,22 @@ export default function AdminOrders() {
                       <span className={`badge badge-${order.status}`}>{STATUS_LABELS[order.status]}</span>
                     </td>
                     <td>
-                      <button
-                        className="btn btn-secondary"
-                        style={{ padding: '4px 10px', fontSize: 13 }}
-                        onClick={() => toggleExpand(order.id)}
-                      >
-                        {expandedId === order.id ? 'Hide' : 'View'}
-                      </button>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: '4px 10px', fontSize: 13 }}
+                          onClick={() => toggleExpand(order.id)}
+                        >
+                          {expandedId === order.id ? 'Hide' : 'View'}
+                        </button>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: '4px 10px', fontSize: 13 }}
+                          onClick={() => navigate(`/admin/orders/${order.id}/print`)}
+                        >
+                          🖨 Print
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   {expandedId === order.id && (
@@ -224,6 +235,12 @@ function OrderDetail({ order, items, onStatusChange }) {
                     <div style={{ fontSize: 12, marginTop: 3, color: 'var(--color-wine)' }}>
                       +2nd: {item.design2_name_snapshot}{item.placement2 ? ` — ${item.placement2}` : ''}
                       {item.second_design_price ? ` (+$${Number(item.second_design_price).toFixed(2)}/ea)` : ''}
+                    </div>
+                  )}
+                  {item.personalization_text && (
+                    <div style={{ fontSize: 12, marginTop: 3, color: 'var(--color-wine)' }}>
+                      Personalization: &ldquo;{item.personalization_text}&rdquo;
+                      {item.personalization_price ? ` (+$${Number(item.personalization_price).toFixed(2)}/ea)` : ''}
                     </div>
                   )}
                 </td>

@@ -57,6 +57,8 @@ export default function Cart() {
       design2_name_snapshot: item.design2_name_snapshot || null,
       placement2: item.placement2 || null,
       second_design_price: item.second_design_price || 0,
+      personalization_text: item.personalization_text || null,
+      personalization_price: item.personalization_price || 0,
       size: item.size,
       color: item.color,
       quantity: item.quantity,
@@ -116,6 +118,13 @@ export default function Cart() {
                             {item.design2_name_snapshot}
                             {item.placement2 && <span style={{ fontSize: 12, opacity: 0.65 }}> — {item.placement2}</span>}
                             <span style={{ fontSize: 12, opacity: 0.65 }}> (+${Number(item.second_design_price).toFixed(2)}/ea)</span>
+                          </div>
+                        )}
+                        {item.personalization_text && (
+                          <div style={{ marginTop: 4, paddingTop: 4, borderTop: '1px solid var(--color-silver-light)' }}>
+                            <span style={{ fontSize: 12, color: 'var(--color-wine)', fontWeight: 600 }}>Personalization: </span>
+                            <span style={{ fontSize: 12 }}>&ldquo;{item.personalization_text}&rdquo;</span>
+                            <span style={{ fontSize: 12, opacity: 0.65 }}> (+${Number(item.personalization_price).toFixed(2)}/ea)</span>
                           </div>
                         )}
                       </td>
