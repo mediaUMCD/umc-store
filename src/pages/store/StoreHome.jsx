@@ -7,10 +7,13 @@ import StoreFooter from '../../components/StoreFooter'
 const STORAGE_BUCKET = 'store-designs'
 const PRODUCT_BUCKET = 'store-products'
 
+const CATEGORIES = ['All Products', 'Clothing', 'Swag', 'Wearable Accessories', 'Special Event Fundraising']
+
 export default function StoreHome() {
   const [products, setProducts] = useState([])
   const [previewImages, setPreviewImages] = useState({})
   const [loading, setLoading] = useState(true)
+  const [activeCategory, setActiveCategory] = useState('All Products')
 
   useEffect(() => {
     async function loadProducts() {
@@ -89,19 +92,54 @@ export default function StoreHome() {
           </p>
         </div>
 
+        {/* Category filter tabs */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
+          {CATEGORIES.map((cat) => {
+            const active = activeCategory === cat
+            return (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: 999,
+                  border: active ? 'none' : '1px solid var(--color-silver)',
+                  background: active ? 'var(--color-wine)' : 'white',
+                  color: active ? 'white' : 'var(--color-wine)',
+                  fontWeight: active ? 700 : 400,
+                  fontSize: 14,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {cat}
+              </button>
+            )
+          })}
+        </div>
+
         {loading ? (
           <p>Loading products…</p>
         ) : products.length === 0 ? (
           <div className="card" style={{ textAlign: 'center' }}>
             <p>No items are available for order right now. Please check back soon!</p>
           </div>
-        ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: 24,
-          }}>
-            {products.map((product) => (
+        ) : (() => {
+          const filtered = activeCategory === 'All Products'
+            ? products
+            : products.filter(p => p.category === activeCategory)
+          return filtered.length === 0 ? (
+            <div className="card" style={{ textAlign: 'center' }}>
+              <p>No items in this category yet.</p>
+            </div>
+          ) : (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: 24,
+            }}>
+              {filtered.map((product) => (
               <Link
                 key={product.id}
                 to={`/product/${product.id}`}
@@ -146,9 +184,10 @@ export default function StoreHome() {
                   </div>
                 </div>
               </Link>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )
+        })()}
       </div>
       <StoreFooter />
     </div>

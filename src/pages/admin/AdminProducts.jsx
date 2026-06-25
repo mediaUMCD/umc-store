@@ -4,12 +4,14 @@ import { supabase } from '../../lib/supabase'
 
 const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL']
 const PRODUCT_BUCKET = 'store-products'
+const CATEGORIES = ['Clothing', 'Swag', 'Wearable Accessories', 'Special Event Fundraising']
 
 const emptyForm = {
   name: '',
   product_type: 'tshirt',
   description: '',
   base_price: '',
+  category: 'Clothing',
   sizes: [...DEFAULT_SIZES],
   size_price_overrides: {},
   active: true,
@@ -72,6 +74,7 @@ export default function AdminProducts() {
       product_type: product.product_type,
       description: product.description || '',
       base_price: String(product.base_price),
+      category: product.category || 'Clothing',
       sizes: product.sizes || [...DEFAULT_SIZES],
       size_price_overrides: product.size_price_overrides || {},
       active: product.active,
@@ -184,6 +187,7 @@ export default function AdminProducts() {
       product_type: form.product_type,
       description: form.description.trim() || null,
       base_price: parseFloat(form.base_price),
+      category: form.category,
       sizes: form.sizes,
       size_price_overrides: form.size_price_overrides,
       active: form.active,
@@ -259,11 +263,17 @@ export default function AdminProducts() {
       <div className="card" style={{ marginBottom: 24 }}>
         <h3>{editingId ? 'Edit Product' : 'Add a Product'}</h3>
         <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
             <div>
               <label htmlFor="p-name">Product Name</label>
               <input id="p-name" type="text" placeholder="e.g. Christian Ed T-Shirt"
                 value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div>
+              <label htmlFor="p-category">Category</label>
+              <select id="p-category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
             <div>
               <label htmlFor="p-type">Type</label>
