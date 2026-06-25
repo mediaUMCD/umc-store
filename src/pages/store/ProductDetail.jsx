@@ -32,33 +32,27 @@ export default function ProductDetail() {
     async function loadData() {
       setLoading(true)
       const { data: productData, error: productError } = await supabase
-        .from('products')
-        .select('*')
-        .eq('id', productId)
-        .eq('active', true)
-        .single()
+        .from('products').select('*').eq('id', productId).eq('active', true).single()
 
-      if (productError || !productData) {
-        setNotFound(true)
-        setLoading(false)
-        return
-      }
+      if (productError || !productData) { setNotFound(true); setLoading(false); return }
       setProduct(productData)
 
       const [designProductsRes, productColorsRes, placementsRes] = await Promise.all([
         supabase.from('design_products').select('design_id').eq('product_id', productId),
-        supabase.from('product_colors').select('color_id, image_path').eq('product_id', productId),
+        supabase.from('product_colors').select('color_id, image_path, available_sizes').eq('product_id', productId),
         supabase.from('placements').select('*').eq('active', true).order('sort_order'),
       ])
 
       const designIds = (designProductsRes.data || []).map((d) => d.design_id)
-      const colorIds = (productColorsRes.data || []).map((c) => c.color_id)
       const photoByColorId = {}
+      const sizesByColorId = {}
       ;(productColorsRes.data || []).forEach((c) => {
         if (c.image_path) {
           photoByColorId[c.color_id] = supabase.storage.from(PRODUCT_BUCKET).getPublicUrl(c.image_path).data.publicUrl
         }
+        sizesByColorId[c.color_id] = c.available_sizes || null // null = all sizes
       })
+      const colorIds = (productColorsRes.data || []).map((c) => c.color_id)
 
       const [designsRes, colorsRes] = await Promise.all([
         designIds.length > 0
@@ -76,12 +70,31 @@ export default function ProductDetail() {
       setColors((colorsRes.data || []).map((c) => ({
         ...c,
         photoUrl: photoByColorId[c.id] || null,
+        availableSizes: sizesByColorId[c.id] || null,
       })))
       setPlacements(placementsRes.data || [])
       setLoading(false)
     }
     loadData()
   }, [productId])
+
+  // When color changes, clear size if it's no longer available
+  useEffect(() => {
+    if (!colorId || !size) return
+    const selectedColor = colors.find((c) => c.id === colorId)
+    if (!selectedColor) return
+    if (selectedColor.availableSizes && !selectedColor.availableSizes.includes(size)) {
+      setSize('')
+    }
+  }, [colorId])
+
+  // Sizes available for the currently selected color (or all sizes if no color / no restriction)
+  function getAvailableSizes() {
+    if (!colorId) return product?.sizes || []
+    const selectedColor = colors.find((c) => c.id === colorId)
+    if (!selectedColor || !selectedColor.availableSizes) return product?.sizes || []
+    return (product?.sizes || []).filter((s) => selectedColor.availableSizes.includes(s))
+  }
 
   function handleAddToCart() {
     setError('')
@@ -113,85 +126,60 @@ export default function ProductDetail() {
     })
 
     setJustAdded(true)
-    // Reset pickers for a potential second add, but keep design selected since
-    // people often order the same design in a couple sizes/colors.
     setSize('')
     setColorId('')
     setQuantity(1)
   }
 
-  if (loading) {
-    return (
-      <div style={{ minHeight: '100vh' }}>
-        <StoreHeader />
-        <div className="container"><p>Loading…</p></div>
-      </div>
-    )
-  }
+  if (loading) return (
+    <div style={{ minHeight: '100vh' }}><StoreHeader />
+      <div className="container"><p>Loading…</p></div>
+    </div>
+  )
 
-  if (notFound) {
-    return (
-      <div style={{ minHeight: '100vh' }}>
-        <StoreHeader />
-        <div className="container" style={{ textAlign: 'center', marginTop: 40 }}>
-          <div className="card">
-            <h2>Item not found</h2>
-            <p>This item may no longer be available.</p>
-            <Link to="/" className="btn btn-primary">Back to Store</Link>
-          </div>
+  if (notFound) return (
+    <div style={{ minHeight: '100vh' }}><StoreHeader />
+      <div className="container" style={{ textAlign: 'center', marginTop: 40 }}>
+        <div className="card">
+          <h2>Item not found</h2>
+          <p>This item may no longer be available.</p>
+          <Link to="/" className="btn btn-primary">Back to Store</Link>
         </div>
       </div>
-    )
-  }
+    </div>
+  )
 
   const selectedDesign = designs.find((d) => d.id === designId)
   const selectedColorPhoto = colors.find((c) => c.id === colorId)?.photoUrl || null
+  const availableSizes = getAvailableSizes()
 
   return (
     <div style={{ minHeight: '100vh' }}>
       <StoreHeader />
-
       <div className="container" style={{ maxWidth: 900 }}>
-        <div style={{ marginBottom: 16 }}>
-          <Link to="/">← Back to Store</Link>
-        </div>
+        <div style={{ marginBottom: 16 }}><Link to="/">← Back to Store</Link></div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'start' }}>
           {/* Image preview */}
           <div>
             <div className="card" style={{
-              aspectRatio: '1 / 1',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: 'linear-gradient(135deg, var(--color-blush), var(--color-silver-light))',
-              overflow: 'hidden',
-              position: 'relative',
+              overflow: 'hidden', position: 'relative',
             }}>
               {selectedColorPhoto ? (
-                <img src={selectedColorPhoto} alt={`${product.name}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={selectedColorPhoto} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : selectedDesign ? (
                 <img src={selectedDesign.publicUrl} alt={selectedDesign.name} style={{ maxWidth: '75%', maxHeight: '75%', objectFit: 'contain' }} />
               ) : (
                 <span style={{ fontSize: 72, opacity: 0.3 }}>👕</span>
               )}
-
-              {/* Design graphic thumbnail — shown in corner when a color photo is the main image */}
               {selectedColorPhoto && selectedDesign && (
                 <div style={{
-                  position: 'absolute',
-                  bottom: 12,
-                  right: 12,
-                  width: 72,
-                  height: 72,
-                  background: 'white',
-                  borderRadius: 'var(--radius)',
-                  border: '1px solid var(--color-silver)',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: 6,
+                  position: 'absolute', bottom: 12, right: 12, width: 72, height: 72,
+                  background: 'white', borderRadius: 'var(--radius)', border: '1px solid var(--color-silver)',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.15)', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', padding: 6,
                 }}>
                   <img src={selectedDesign.publicUrl} alt={selectedDesign.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
                 </div>
@@ -217,19 +205,10 @@ export default function ProductDetail() {
                 <label>Design</label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                   {designs.map((d) => (
-                    <button
-                      type="button"
-                      key={d.id}
-                      onClick={() => setDesignId(d.id)}
-                      style={{
-                        border: designId === d.id ? '2px solid var(--color-wine)' : '1px solid var(--color-silver)',
-                        borderRadius: 'var(--radius)',
-                        padding: 6,
-                        background: 'white',
-                        width: 90,
-                        textAlign: 'center',
-                      }}
-                    >
+                    <button type="button" key={d.id} onClick={() => setDesignId(d.id)} style={{
+                      border: designId === d.id ? '2px solid var(--color-wine)' : '1px solid var(--color-silver)',
+                      borderRadius: 'var(--radius)', padding: 6, background: 'white', width: 90, textAlign: 'center',
+                    }}>
                       <div style={{ width: '100%', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                         <img src={d.publicUrl} alt={d.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
                       </div>
@@ -245,19 +224,27 @@ export default function ProductDetail() {
                 <label htmlFor="pd-placement">Placement</label>
                 <select id="pd-placement" value={placement} onChange={(e) => setPlacement(e.target.value)}>
                   <option value="">Choose placement…</option>
-                  {placements.map((p) => (
-                    <option key={p.id} value={p.name}>{p.name}</option>
-                  ))}
+                  {placements.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
                 </select>
               </div>
             )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 18 }}>
+              {colors.length > 0 && (
+                <div>
+                  <label htmlFor="pd-color">Color</label>
+                  <select id="pd-color" value={colorId} onChange={(e) => { setColorId(e.target.value); setSize('') }}>
+                    <option value="">Choose color…</option>
+                    {colors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              )}
+
               <div>
                 <label htmlFor="pd-size">Size</label>
                 <select id="pd-size" value={size} onChange={(e) => setSize(e.target.value)}>
                   <option value="">Choose size…</option>
-                  {(product.sizes || []).map((s) => {
+                  {availableSizes.map((s) => {
                     const override = product.size_price_overrides?.[s]
                     return (
                       <option key={s} value={s}>
@@ -266,30 +253,17 @@ export default function ProductDetail() {
                     )
                   })}
                 </select>
+                {colorId && colors.find(c => c.id === colorId)?.availableSizes && (
+                  <p style={{ fontSize: 11, color: 'var(--color-wine)', marginTop: 4 }}>
+                    Showing sizes available in {colors.find(c => c.id === colorId)?.name}
+                  </p>
+                )}
               </div>
-
-              {colors.length > 0 && (
-                <div>
-                  <label htmlFor="pd-color">Color</label>
-                  <select id="pd-color" value={colorId} onChange={(e) => setColorId(e.target.value)}>
-                    <option value="">Choose color…</option>
-                    {colors.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
             </div>
 
             <div style={{ marginBottom: 18, maxWidth: 120 }}>
               <label htmlFor="pd-qty">Quantity</label>
-              <input
-                id="pd-qty"
-                type="number"
-                min="1"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-              />
+              <input id="pd-qty" type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
             </div>
 
             {error && <p style={{ color: 'var(--color-danger)', fontSize: 14, marginBottom: 12 }}>{error}</p>}
