@@ -203,18 +203,61 @@ export default function ProductDetail() {
             {designs.length > 0 && (
               <div style={{ marginBottom: 18 }}>
                 <label>Design</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                  {designs.map((d) => (
-                    <button type="button" key={d.id} onClick={() => setDesignId(d.id)} style={{
-                      border: designId === d.id ? '2px solid var(--color-wine)' : '1px solid var(--color-silver)',
-                      borderRadius: 'var(--radius)', padding: 6, background: 'white', width: 90, textAlign: 'center',
-                    }}>
-                      <div style={{ width: '100%', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                        <img src={d.publicUrl} alt={d.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                      </div>
-                      <div style={{ fontSize: 11, marginTop: 4 }}>{d.name}</div>
-                    </button>
-                  ))}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
+                  gap: 10,
+                  marginTop: 8,
+                }}>
+                  {designs.map((d) => {
+                    const selected = designId === d.id
+                    return (
+                      <button
+                        type="button"
+                        key={d.id}
+                        onClick={() => setDesignId(d.id)}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: 8,
+                          padding: '10px 8px',
+                          border: selected ? '2px solid var(--color-wine)' : '1px solid var(--color-silver)',
+                          borderRadius: 'var(--radius)',
+                          background: selected ? 'var(--color-blush)' : 'white',
+                          boxShadow: selected ? '0 2px 8px rgba(61,0,38,0.15)' : '0 1px 3px rgba(0,0,0,0.06)',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          textAlign: 'center',
+                        }}
+                      >
+                        <div style={{
+                          width: 64,
+                          height: 64,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}>
+                          <img
+                            src={d.publicUrl}
+                            alt={d.name}
+                            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                          />
+                        </div>
+                        <span style={{
+                          fontSize: 11,
+                          lineHeight: 1.3,
+                          color: selected ? 'var(--color-wine)' : 'inherit',
+                          fontWeight: selected ? 600 : 400,
+                          wordBreak: 'break-word',
+                          width: '100%',
+                        }}>
+                          {d.name}
+                        </span>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             )}
