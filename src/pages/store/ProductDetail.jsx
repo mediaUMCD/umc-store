@@ -33,7 +33,6 @@ export default function ProductDetail() {
       setLoading(true)
       const { data: productData, error: productError } = await supabase
         .from('products').select('*').eq('id', productId).eq('active', true).single()
-
       if (productError || !productData) { setNotFound(true); setLoading(false); return }
       setProduct(productData)
 
@@ -50,21 +49,33 @@ export default function ProductDetail() {
         if (c.image_path) {
           photoByColorId[c.color_id] = supabase.storage.from(PRODUCT_BUCKET).getPublicUrl(c.image_path).data.publicUrl
         }
-        sizesByColorId[c.color_id] = c.available_sizes || null // null = all sizes
+        sizesByColorId[c.color_id] = c.available_sizes || null
       })
       const colorIds = (productColorsRes.data || []).map((c) => c.color_id)
 
-      const [designsRes, colorsRes] = await Promise.all([
+      // Load designs with their allowed placements
+      const [designsRes, colorsRes, designPlacementsRes] = await Promise.all([
         designIds.length > 0
           ? supabase.from('designs').select('*').in('id', designIds).eq('active', true)
           : Promise.resolve({ data: [] }),
         colorIds.length > 0
           ? supabase.from('colors').select('*').in('id', colorIds).eq('active', true)
           : Promise.resolve({ data: [] }),
+        designIds.length > 0
+          ? supabase.from('design_placements').select('design_id, placement_id').in('design_id', designIds)
+          : Promise.resolve({ data: [] }),
       ])
+
+      // Map allowed placement IDs per design
+      const placementsByDesign = {}
+      ;(designPlacementsRes.data || []).forEach((dp) => {
+        if (!placementsByDesign[dp.design_id]) placementsByDesign[dp.design_id] = []
+        placementsByDesign[dp.design_id].push(dp.placement_id)
+      })
 
       setDesigns((designsRes.data || []).map((d) => ({
         ...d,
+        allowedPlacementIds: placementsByDesign[d.id] || [],
         publicUrl: supabase.storage.from(STORAGE_BUCKET).getPublicUrl(d.image_path).data.publicUrl,
       })))
       setColors((colorsRes.data || []).map((c) => ({
@@ -78,30 +89,42 @@ export default function ProductDetail() {
     loadData()
   }, [productId])
 
-  // When color changes, clear size if it's no longer available
+  // When color changes, clear size if no longer available
   useEffect(() => {
     if (!colorId || !size) return
     const selectedColor = colors.find((c) => c.id === colorId)
-    if (!selectedColor) return
-    if (selectedColor.availableSizes && !selectedColor.availableSizes.includes(size)) {
-      setSize('')
-    }
+    if (selectedColor?.availableSizes && !selectedColor.availableSizes.includes(size)) setSize('')
   }, [colorId])
 
-  // Sizes available for the currently selected color (or all sizes if no color / no restriction)
+  // When design changes, clear placement if no longer valid
+  useEffect(() => {
+    if (!designId || !placement) return
+    const selectedDesign = designs.find((d) => d.id === designId)
+    if (!selectedDesign) return
+    const allowedPlacements = getPlacementsForDesign(selectedDesign)
+    if (allowedPlacements.length > 0 && !allowedPlacements.find(p => p.name === placement)) {
+      setPlacement('')
+    }
+  }, [designId])
+
   function getAvailableSizes() {
     if (!colorId) return product?.sizes || []
     const selectedColor = colors.find((c) => c.id === colorId)
-    if (!selectedColor || !selectedColor.availableSizes) return product?.sizes || []
+    if (!selectedColor?.availableSizes) return product?.sizes || []
     return (product?.sizes || []).filter((s) => selectedColor.availableSizes.includes(s))
+  }
+
+  function getPlacementsForDesign(design) {
+    if (!design) return placements
+    if (!design.allowedPlacementIds || design.allowedPlacementIds.length === 0) return placements
+    return placements.filter((p) => design.allowedPlacementIds.includes(p.id))
   }
 
   function handleAddToCart() {
     setError('')
     setJustAdded(false)
-
-    if (!size) { setError('Please choose a size.'); return }
     if (colors.length > 0 && !colorId) { setError('Please choose a color.'); return }
+    if (!size) { setError('Please choose a size.'); return }
     if (designs.length > 0 && !designId) { setError('Please choose a design.'); return }
     if (designId && placements.length > 0 && !placement) { setError('Please choose a placement.'); return }
     if (!quantity || quantity < 1) { setError('Quantity must be at least 1.'); return }
@@ -128,6 +151,8 @@ export default function ProductDetail() {
     setJustAdded(true)
     setSize('')
     setColorId('')
+    setDesignId('')
+    setPlacement('')
     setQuantity(1)
   }
 
@@ -149,112 +174,90 @@ export default function ProductDetail() {
     </div>
   )
 
+  const selectedColor = colors.find((c) => c.id === colorId)
   const selectedDesign = designs.find((d) => d.id === designId)
-  const selectedColorPhoto = colors.find((c) => c.id === colorId)?.photoUrl || null
   const availableSizes = getAvailableSizes()
+  const availablePlacements = getPlacementsForDesign(selectedDesign)
 
   return (
     <div style={{ minHeight: '100vh' }}>
       <StoreHeader />
-      <div className="container" style={{ maxWidth: 900 }}>
+      <div className="container" style={{ maxWidth: 1000 }}>
         <div style={{ marginBottom: 16 }}><Link to="/">← Back to Store</Link></div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'start' }}>
-          {/* Image preview */}
+        {/* ── Top section: image left, color+size right ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'start', marginBottom: 32 }}>
+
+          {/* Product image */}
           <div>
             <div className="card" style={{
               aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: 'linear-gradient(135deg, var(--color-blush), var(--color-silver-light))',
-              overflow: 'hidden', position: 'relative',
+              overflow: 'hidden',
             }}>
-              {selectedColorPhoto ? (
-                <img src={selectedColorPhoto} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : selectedDesign ? (
-                <img src={selectedDesign.publicUrl} alt={selectedDesign.name} style={{ maxWidth: '75%', maxHeight: '75%', objectFit: 'contain' }} />
+              {selectedColor?.photoUrl ? (
+                <img src={selectedColor.photoUrl} alt={selectedColor.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 <span style={{ fontSize: 72, opacity: 0.3 }}>👕</span>
               )}
-              {selectedColorPhoto && selectedDesign && (
-                <div style={{
-                  position: 'absolute', bottom: 12, right: 12, width: 72, height: 72,
-                  background: 'white', borderRadius: 'var(--radius)', border: '1px solid var(--color-silver)',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.15)', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center', padding: 6,
-                }}>
-                  <img src={selectedDesign.publicUrl} alt={selectedDesign.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                </div>
-              )}
             </div>
-            {selectedColorPhoto && (
+            {selectedColor?.photoUrl && (
               <p style={{ fontSize: 12, opacity: 0.6, textAlign: 'center', marginTop: 8 }}>
-                Showing: {colors.find((c) => c.id === colorId)?.name}
+                Showing: {selectedColor.name}
               </p>
             )}
           </div>
 
-          {/* Options panel */}
+          {/* Product info + color + size */}
           <div>
             <h1 style={{ marginBottom: 4 }}>{product.name}</h1>
             {product.description && <p style={{ opacity: 0.75, marginBottom: 12 }}>{product.description}</p>}
-            <p style={{ fontWeight: 700, color: 'var(--color-wine)', fontSize: 20, marginBottom: 20 }}>
+            <p style={{ fontWeight: 700, color: 'var(--color-wine)', fontSize: 20, marginBottom: 24 }}>
               ${Number(product.base_price).toFixed(2)}+
             </p>
 
-            {designs.length > 0 && (
-              <div style={{ marginBottom: 18 }}>
-                <label>Design</label>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
-                  gap: 10,
-                  marginTop: 8,
-                }}>
-                  {designs.map((d) => {
-                    const selected = designId === d.id
+            {/* Color picker — photo cards */}
+            {colors.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', marginBottom: 8 }}>Color</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                  {colors.map((c) => {
+                    const selected = colorId === c.id
                     return (
                       <button
+                        key={c.id}
                         type="button"
-                        key={d.id}
-                        onClick={() => setDesignId(d.id)}
+                        onClick={() => { setColorId(c.id); setSize('') }}
+                        title={c.name}
                         style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: 8,
-                          padding: '10px 8px',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                          padding: 8, width: 90,
                           border: selected ? '2px solid var(--color-wine)' : '1px solid var(--color-silver)',
                           borderRadius: 'var(--radius)',
                           background: selected ? 'var(--color-blush)' : 'white',
                           boxShadow: selected ? '0 2px 8px rgba(61,0,38,0.15)' : '0 1px 3px rgba(0,0,0,0.06)',
                           cursor: 'pointer',
                           transition: 'all 0.15s ease',
-                          textAlign: 'center',
                         }}
                       >
-                        <div style={{
-                          width: 64,
-                          height: 64,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                        }}>
-                          <img
-                            src={d.publicUrl}
-                            alt={d.name}
-                            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
-                          />
-                        </div>
+                        {c.photoUrl ? (
+                          <img src={c.photoUrl} alt={c.name}
+                            style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6 }} />
+                        ) : (
+                          <span style={{
+                            width: 60, height: 60, borderRadius: 6,
+                            background: c.hex_value || '#ccc',
+                            border: '1px solid var(--color-silver)',
+                            display: 'block',
+                          }} />
+                        )}
                         <span style={{
-                          fontSize: 11,
-                          lineHeight: 1.3,
+                          fontSize: 11, lineHeight: 1.3, textAlign: 'center',
                           color: selected ? 'var(--color-wine)' : 'inherit',
                           fontWeight: selected ? 600 : 400,
-                          wordBreak: 'break-word',
-                          width: '100%',
-                        }}>
-                          {d.name}
-                        </span>
+                          wordBreak: 'break-word', width: '100%',
+                        }}>{c.name}</span>
                       </button>
                     )
                   })}
@@ -262,65 +265,109 @@ export default function ProductDetail() {
               </div>
             )}
 
-            {designId && placements.length > 0 && (
-              <div style={{ marginBottom: 18 }}>
-                <label htmlFor="pd-placement">Placement</label>
-                <select id="pd-placement" value={placement} onChange={(e) => setPlacement(e.target.value)}>
-                  <option value="">Choose placement…</option>
-                  {placements.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
-                </select>
-              </div>
-            )}
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 18 }}>
-              {colors.length > 0 && (
-                <div>
-                  <label htmlFor="pd-color">Color</label>
-                  <select id="pd-color" value={colorId} onChange={(e) => { setColorId(e.target.value); setSize('') }}>
-                    <option value="">Choose color…</option>
-                    {colors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
+            {/* Size picker */}
+            <div style={{ marginBottom: 20, maxWidth: 280 }}>
+              <label htmlFor="pd-size">Size</label>
+              <select id="pd-size" value={size} onChange={(e) => setSize(e.target.value)}>
+                <option value="">Choose size…</option>
+                {availableSizes.map((s) => {
+                  const override = product.size_price_overrides?.[s]
+                  return (
+                    <option key={s} value={s}>
+                      {s}{override !== undefined ? ` (+$${Number(override).toFixed(2)})` : ''}
+                    </option>
+                  )
+                })}
+              </select>
+              {colorId && selectedColor?.availableSizes && (
+                <p style={{ fontSize: 11, color: 'var(--color-wine)', marginTop: 4 }}>
+                  Showing sizes available in {selectedColor.name}
+                </p>
               )}
+            </div>
+          </div>
+        </div>
 
-              <div>
-                <label htmlFor="pd-size">Size</label>
-                <select id="pd-size" value={size} onChange={(e) => setSize(e.target.value)}>
-                  <option value="">Choose size…</option>
-                  {availableSizes.map((s) => {
-                    const override = product.size_price_overrides?.[s]
-                    return (
-                      <option key={s} value={s}>
-                        {s}{override !== undefined ? ` (+$${Number(override).toFixed(2)})` : ''}
-                      </option>
-                    )
-                  })}
-                </select>
-                {colorId && colors.find(c => c.id === colorId)?.availableSizes && (
-                  <p style={{ fontSize: 11, color: 'var(--color-wine)', marginTop: 4 }}>
-                    Showing sizes available in {colors.find(c => c.id === colorId)?.name}
-                  </p>
-                )}
+        {/* ── Bottom section: design + placement + order ── */}
+        <div className="card" style={{ marginBottom: 24 }}>
+
+          {/* Design picker */}
+          {designs.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ fontSize: 16, fontWeight: 700 }}>Design</label>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
+                gap: 10, marginTop: 10,
+              }}>
+                {designs.map((d) => {
+                  const selected = designId === d.id
+                  return (
+                    <button
+                      type="button"
+                      key={d.id}
+                      onClick={() => { setDesignId(d.id); setPlacement('') }}
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                        padding: '10px 8px',
+                        border: selected ? '2px solid var(--color-wine)' : '1px solid var(--color-silver)',
+                        borderRadius: 'var(--radius)',
+                        background: selected ? 'var(--color-blush)' : 'white',
+                        boxShadow: selected ? '0 2px 8px rgba(61,0,38,0.15)' : '0 1px 3px rgba(0,0,0,0.06)',
+                        cursor: 'pointer', transition: 'all 0.15s ease', textAlign: 'center',
+                      }}
+                    >
+                      <div style={{ width: 64, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <img src={d.publicUrl} alt={d.name}
+                          style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                      </div>
+                      <span style={{
+                        fontSize: 11, lineHeight: 1.3,
+                        color: selected ? 'var(--color-wine)' : 'inherit',
+                        fontWeight: selected ? 600 : 400,
+                        wordBreak: 'break-word', width: '100%',
+                      }}>{d.name}</span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
+          )}
 
-            <div style={{ marginBottom: 18, maxWidth: 120 }}>
-              <label htmlFor="pd-qty">Quantity</label>
-              <input id="pd-qty" type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+          {/* Placement — only shown when design is selected, filtered to allowed placements */}
+          {designId && availablePlacements.length > 0 && (
+            <div style={{ marginBottom: 24, maxWidth: 340 }}>
+              <label htmlFor="pd-placement">Placement</label>
+              <select id="pd-placement" value={placement} onChange={(e) => setPlacement(e.target.value)}>
+                <option value="">Choose placement…</option>
+                {availablePlacements.map((p) => (
+                  <option key={p.id} value={p.name}>{p.name}</option>
+                ))}
+              </select>
             </div>
+          )}
 
-            {error && <p style={{ color: 'var(--color-danger)', fontSize: 14, marginBottom: 12 }}>{error}</p>}
-            {justAdded && <p style={{ color: 'var(--color-success)', fontSize: 14, marginBottom: 12, fontWeight: 600 }}>Added to cart!</p>}
-
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <button type="button" className="btn btn-primary" style={{ padding: '12px 24px', fontSize: 15 }} onClick={handleAddToCart}>
+          {/* Quantity + add to cart */}
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ maxWidth: 120 }}>
+              <label htmlFor="pd-qty">Quantity</label>
+              <input id="pd-qty" type="number" min="1" value={quantity}
+                onChange={(e) => setQuantity(e.target.value)} />
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', paddingBottom: 2 }}>
+              <button type="button" className="btn btn-primary"
+                style={{ padding: '12px 24px', fontSize: 15 }} onClick={handleAddToCart}>
                 Add to Cart
               </button>
-              <button type="button" className="btn btn-secondary" style={{ padding: '12px 24px', fontSize: 15 }} onClick={() => navigate('/cart')}>
+              <button type="button" className="btn btn-secondary"
+                style={{ padding: '12px 24px', fontSize: 15 }} onClick={() => navigate('/cart')}>
                 View Cart
               </button>
             </div>
           </div>
+
+          {error && <p style={{ color: 'var(--color-danger)', fontSize: 14, marginTop: 12 }}>{error}</p>}
+          {justAdded && <p style={{ color: 'var(--color-success)', fontSize: 14, marginTop: 12, fontWeight: 600 }}>Added to cart!</p>}
         </div>
       </div>
       <StoreFooter />
