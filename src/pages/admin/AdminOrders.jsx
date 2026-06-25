@@ -206,8 +206,7 @@ function OrderDetail({ order, items, onStatusChange }) {
           <thead>
             <tr>
               <th>Product</th>
-              <th>Design</th>
-              <th>Placement</th>
+              <th>Design(s) &amp; Placement</th>
               <th>Size</th>
               <th>Color</th>
               <th>Qty</th>
@@ -219,8 +218,15 @@ function OrderDetail({ order, items, onStatusChange }) {
             {items.map((item) => (
               <tr key={item.id}>
                 <td>{item.product_name_snapshot}</td>
-                <td>{item.design_name_snapshot || '—'}</td>
-                <td>{item.placement || '—'}</td>
+                <td>
+                  <div>{item.design_name_snapshot || '—'}{item.placement ? ` — ${item.placement}` : ''}</div>
+                  {item.design2_name_snapshot && (
+                    <div style={{ fontSize: 12, marginTop: 3, color: 'var(--color-wine)' }}>
+                      +2nd: {item.design2_name_snapshot}{item.placement2 ? ` — ${item.placement2}` : ''}
+                      {item.second_design_price ? ` (+$${Number(item.second_design_price).toFixed(2)}/ea)` : ''}
+                    </div>
+                  )}
+                </td>
                 <td>{item.size}</td>
                 <td>{item.color}</td>
                 <td>{item.quantity}</td>

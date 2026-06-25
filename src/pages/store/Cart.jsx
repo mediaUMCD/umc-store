@@ -22,18 +22,10 @@ export default function Cart() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
-
-    if (cart.length === 0) {
-      setError('Your cart is empty.')
-      return
-    }
-    if (!contact.name.trim()) {
-      setError('Please enter your name.')
-      return
-    }
+    if (cart.length === 0) { setError('Your cart is empty.'); return }
+    if (!contact.name.trim()) { setError('Please enter your name.'); return }
     if (!contact.email.trim() && !contact.phone.trim()) {
-      setError('Please provide an email or phone number so we can reach you.')
-      return
+      setError('Please provide an email or phone number so we can reach you.'); return
     }
 
     setSubmitting(true)
@@ -50,14 +42,9 @@ export default function Cart() {
         total_estimated: total,
         status: 'new',
       })
-      .select()
-      .single()
+      .select().single()
 
-    if (orderError) {
-      setError(`Could not submit order: ${orderError.message}`)
-      setSubmitting(false)
-      return
-    }
+    if (orderError) { setError(`Could not submit order: ${orderError.message}`); setSubmitting(false); return }
 
     const itemRows = cart.map((item) => ({
       order_id: order.id,
@@ -66,6 +53,10 @@ export default function Cart() {
       product_name_snapshot: item.product_name_snapshot,
       design_name_snapshot: item.design_name_snapshot,
       placement: item.placement,
+      design2_id: item.design2_id || null,
+      design2_name_snapshot: item.design2_name_snapshot || null,
+      placement2: item.placement2 || null,
+      second_design_price: item.second_design_price || 0,
       size: item.size,
       color: item.color,
       quantity: item.quantity,
@@ -74,11 +65,9 @@ export default function Cart() {
     }))
 
     const { error: itemsError } = await supabase.from('order_items').insert(itemRows)
-
     if (itemsError) {
       setError(`Order created but items failed to save: ${itemsError.message}. Please contact the church office.`)
-      setSubmitting(false)
-      return
+      setSubmitting(false); return
     }
 
     clearCart()
@@ -88,11 +77,8 @@ export default function Cart() {
   return (
     <div style={{ minHeight: '100vh' }}>
       <StoreHeader />
-
-      <div className="container" style={{ maxWidth: 800 }}>
-        <div style={{ marginBottom: 16 }}>
-          <Link to="/">← Continue Shopping</Link>
-        </div>
+      <div className="container" style={{ maxWidth: 860 }}>
+        <div style={{ marginBottom: 16 }}><Link to="/">← Continue Shopping</Link></div>
         <h1>Your Cart</h1>
 
         {cart.length === 0 ? (
@@ -107,8 +93,7 @@ export default function Cart() {
                 <thead>
                   <tr>
                     <th>Item</th>
-                    <th>Design</th>
-                    <th>Placement</th>
+                    <th>Design(s) &amp; Placement</th>
                     <th>Size</th>
                     <th>Color</th>
                     <th>Qty</th>
@@ -120,26 +105,31 @@ export default function Cart() {
                   {cart.map((item) => (
                     <tr key={item.cartId}>
                       <td>{item.product_name_snapshot}</td>
-                      <td>{item.design_name_snapshot || '—'}</td>
-                      <td>{item.placement || '—'}</td>
+                      <td>
+                        <div>
+                          {item.design_name_snapshot || '—'}
+                          {item.placement && <span style={{ fontSize: 12, opacity: 0.65 }}> — {item.placement}</span>}
+                        </div>
+                        {item.design2_name_snapshot && (
+                          <div style={{ marginTop: 4, paddingTop: 4, borderTop: '1px solid var(--color-silver-light)' }}>
+                            <span style={{ fontSize: 12, color: 'var(--color-wine)', fontWeight: 600 }}>+2nd: </span>
+                            {item.design2_name_snapshot}
+                            {item.placement2 && <span style={{ fontSize: 12, opacity: 0.65 }}> — {item.placement2}</span>}
+                            <span style={{ fontSize: 12, opacity: 0.65 }}> (+${Number(item.second_design_price).toFixed(2)}/ea)</span>
+                          </div>
+                        )}
+                      </td>
                       <td>{item.size}</td>
                       <td>{item.color || '—'}</td>
                       <td>
-                        <input
-                          type="number"
-                          min="1"
-                          value={item.quantity}
+                        <input type="number" min="1" value={item.quantity}
                           onChange={(e) => updateQuantity(item.cartId, Math.max(1, Number(e.target.value)))}
-                          style={{ width: 60, padding: '4px 6px' }}
-                        />
+                          style={{ width: 60, padding: '4px 6px' }} />
                       </td>
                       <td>${item.line_total.toFixed(2)}</td>
                       <td>
-                        <button
-                          type="button"
-                          onClick={() => removeItem(item.cartId)}
-                          style={{ background: 'none', border: 'none', color: 'var(--color-danger)', fontWeight: 700 }}
-                        >
+                        <button type="button" onClick={() => removeItem(item.cartId)}
+                          style={{ background: 'none', border: 'none', color: 'var(--color-danger)', fontWeight: 700 }}>
                           Remove
                         </button>
                       </td>
@@ -147,7 +137,6 @@ export default function Cart() {
                   ))}
                 </tbody>
               </table>
-
               <p style={{ textAlign: 'right', fontWeight: 700, fontSize: 18, color: 'var(--color-wine-dark)' }}>
                 Estimated Total: ${total.toFixed(2)}
               </p>
@@ -157,41 +146,25 @@ export default function Cart() {
               <h3>Your Contact Info</h3>
               <div style={{ marginBottom: 14 }}>
                 <label htmlFor="c-name">Full Name</label>
-                <input
-                  id="c-name"
-                  type="text"
-                  value={contact.name}
-                  onChange={(e) => setContact({ ...contact, name: e.target.value })}
-                />
+                <input id="c-name" type="text" value={contact.name}
+                  onChange={(e) => setContact({ ...contact, name: e.target.value })} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
                 <div>
                   <label htmlFor="c-email">Email</label>
-                  <input
-                    id="c-email"
-                    type="email"
-                    value={contact.email}
-                    onChange={(e) => setContact({ ...contact, email: e.target.value })}
-                  />
+                  <input id="c-email" type="email" value={contact.email}
+                    onChange={(e) => setContact({ ...contact, email: e.target.value })} />
                 </div>
                 <div>
                   <label htmlFor="c-phone">Phone</label>
-                  <input
-                    id="c-phone"
-                    type="tel"
-                    value={contact.phone}
-                    onChange={(e) => setContact({ ...contact, phone: e.target.value })}
-                  />
+                  <input id="c-phone" type="tel" value={contact.phone}
+                    onChange={(e) => setContact({ ...contact, phone: e.target.value })} />
                 </div>
               </div>
               <div>
                 <label htmlFor="c-notes">Notes (optional)</label>
-                <textarea
-                  id="c-notes"
-                  rows={3}
-                  value={contact.notes}
-                  onChange={(e) => setContact({ ...contact, notes: e.target.value })}
-                />
+                <textarea id="c-notes" rows={3} value={contact.notes}
+                  onChange={(e) => setContact({ ...contact, notes: e.target.value })} />
               </div>
             </div>
 
@@ -202,8 +175,8 @@ export default function Cart() {
             </div>
 
             {error && <p style={{ color: 'var(--color-danger)', marginBottom: 16 }}>{error}</p>}
-
-            <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: 14, fontSize: 16 }} disabled={submitting}>
+            <button type="submit" className="btn btn-primary"
+              style={{ width: '100%', padding: 14, fontSize: 16 }} disabled={submitting}>
               {submitting ? 'Submitting…' : 'Submit Order'}
             </button>
           </form>
