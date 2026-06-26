@@ -7,7 +7,7 @@ export default function StoreHeader() {
   const { itemCount } = useCart()
   return (
     <header style={{
-      background: 'linear-gradient(135deg, var(--color-wine-dark) 0%, var(--color-burgundy) 100%)',
+      background: 'linear-gradient(135deg, #3D0026 0%, #7A0047 100%)',
       color: 'white',
       padding: '14px 28px',
       display: 'flex',
