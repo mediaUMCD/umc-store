@@ -57,17 +57,16 @@ export default function StoreHome() {
 
       {/* Hero banner */}
       <div style={{
-        background: 'linear-gradient(135deg, var(--color-wine-dark) 0%, var(--color-burgundy) 100%)',
-        color: 'white',
+        background: 'linear-gradient(135deg, #3D0026 0%, #7A0047 100%)',
         textAlign: 'center',
         padding: '32px 24px 28px',
-        borderBottom: '4px solid var(--color-blush)',
+        borderBottom: '4px solid #F7E6F0',
       }}>
         <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 28, fontWeight: 700, margin: '0 0 8px', letterSpacing: '-0.01em', color: 'white' }}>
           Support Your Church, Look Great Doing It
         </h1>
-        <p style={{ fontSize: 14, opacity: 0.85, margin: 0, maxWidth: 500, marginInline: 'auto', color: 'white' }}>
-          Orders are collected here and <strong>paid for in person</strong> (cash, check, or Venmo) at pickup — no online payment required.
+        <p style={{ fontSize: 14, margin: 0, maxWidth: 500, marginInline: 'auto', color: 'rgba(255,255,255,0.85)' }}>
+          Orders are collected here and <strong style={{ color: 'white' }}>paid for in person</strong> (cash, check, or Venmo) at pickup — no online payment required.
         </p>
       </div>
 
@@ -103,12 +102,12 @@ export default function StoreHome() {
                   onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 20px rgba(61,0,38,0.15)'}
                   onMouseLeave={e => e.currentTarget.style.boxShadow = ''}>
                   <div style={{
-                    height: 220, background: 'linear-gradient(135deg, var(--color-blush), #f0e0ec)',
+                    height: 220, background: '#f8f0f5',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     borderRadius: 'var(--radius)', overflow: 'hidden', marginBottom: 12,
                   }}>
                     {previewImages[product.id]
-                      ? <img src={previewImages[product.id]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ? <img src={previewImages[product.id]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                       : <span style={{ fontSize: 48, opacity: 0.3 }}>👕</span>
                     }
                   </div>
