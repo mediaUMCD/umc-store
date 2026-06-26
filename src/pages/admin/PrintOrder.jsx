@@ -296,7 +296,7 @@ function Header() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
         <img src={BEE_IMG} alt="" style={{ height: 80, objectFit: 'contain' }} />
-        <img src={TEXT_IMG} alt="Bumble Bee Studios" style={{ height: 32, objectFit: 'contain' }} />
+        <img src={TEXT_IMG} alt="Bumble Bee Studios" style={{ height: 60, objectFit: 'contain' }} />
       </div>
     </div>
   )
