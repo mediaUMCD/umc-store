@@ -16,6 +16,7 @@ export default function ProductDetail() {
   const { addItem } = useCart()
 
   const [product, setProduct] = useState(null)
+  const [linkedEvent, setLinkedEvent] = useState(null)
   const [designs, setDesigns] = useState([])
   const [colors, setColors] = useState([])
   const [placements, setPlacements] = useState([])
@@ -43,6 +44,17 @@ export default function ProductDetail() {
         .from('products').select('*').eq('id', productId).eq('active', true).single()
       if (productError || !productData) { setNotFound(true); setLoading(false); return }
       setProduct(productData)
+
+      // Load linked event if product has one
+      let linkedEvent = null
+      if (productData.event_id) {
+        const { data: evData } = await supabase
+          .from('calendar_events')
+          .select('id, title, event_date, event_end_date, location')
+          .eq('id', productData.event_id)
+          .single()
+        linkedEvent = evData || null
+      }
 
       const [designProductsRes, productColorsRes, placementsRes] = await Promise.all([
         supabase.from('design_products').select('design_id').eq('product_id', productId),
@@ -93,6 +105,7 @@ export default function ProductDetail() {
       // Auto-select first color so product image shows on load
       if (loadedColors.length > 0) setColorId(loadedColors[0].id)
       setPlacements(placementsRes.data || [])
+      if (linkedEvent) setLinkedEvent(linkedEvent)
       setLoading(false)
     }
     loadData()
@@ -230,6 +243,20 @@ export default function ProductDetail() {
           <div>
             <h1 style={{ marginBottom: 4 }}>{product.name}</h1>
             {product.description && <p style={{ opacity: 0.75, marginBottom: 12 }}>{product.description}</p>}
+
+            {linkedEvent && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, padding: '8px 12px', background: 'var(--color-blush)', borderRadius: 'var(--radius)', border: '1px solid var(--color-burgundy)30' }}>
+                <span style={{ fontSize: 16 }}>📅</span>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-wine)' }}>Special Event Fundraiser</div>
+                  <div style={{ fontSize: 12, color: 'var(--color-burgundy)' }}>
+                    {linkedEvent.title}
+                    {linkedEvent.event_date ? ` · ${new Date(linkedEvent.event_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}` : ''}
+                    {linkedEvent.location ? ` · ${linkedEvent.location}` : ''}
+                  </div>
+                </div>
+              </div>
+            )}
             <p style={{ fontWeight: 700, color: 'var(--color-wine)', fontSize: 20, marginBottom: 24 }}>
               ${Number(product.base_price).toFixed(2)}+
             </p>

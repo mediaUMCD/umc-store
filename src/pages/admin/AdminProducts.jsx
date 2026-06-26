@@ -12,6 +12,7 @@ const emptyForm = {
   description: '',
   base_price: '',
   category: 'Clothing',
+  event_id: '',
   sizes: [...DEFAULT_SIZES],
   size_price_overrides: {},
   active: true,
@@ -20,6 +21,7 @@ const emptyForm = {
 export default function AdminProducts() {
   const [products, setProducts] = useState([])
   const [allColors, setAllColors] = useState([])
+  const [calendarEvents, setCalendarEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(emptyForm)
   // colorSelections: { [colorId]: { selected, existingPath, newFile, previewUrl, availableSizes } }
@@ -31,10 +33,11 @@ export default function AdminProducts() {
 
   async function loadData() {
     setLoading(true)
-    const [productsRes, colorsRes, productColorsRes] = await Promise.all([
+    const [productsRes, colorsRes, productColorsRes, eventsRes] = await Promise.all([
       supabase.from('products').select('*').order('sort_order'),
       supabase.from('colors').select('*').eq('active', true).order('name'),
       supabase.from('product_colors').select('product_id, color_id, image_path, available_sizes'),
+      supabase.from('calendar_events').select('id, title, event_date').order('event_date', { ascending: false }).limit(50),
     ])
 
     if (productsRes.error) {
@@ -52,6 +55,7 @@ export default function AdminProducts() {
       setProducts(productsRes.data.map((p) => ({ ...p, productColors: colorMap[p.id] || [] })))
     }
     setAllColors(colorsRes.data || [])
+    setCalendarEvents(eventsRes.data || [])
     setLoading(false)
   }
 
@@ -75,6 +79,7 @@ export default function AdminProducts() {
       description: product.description || '',
       base_price: String(product.base_price),
       category: product.category || 'Clothing',
+      event_id: product.event_id || '',
       sizes: product.sizes || [...DEFAULT_SIZES],
       size_price_overrides: product.size_price_overrides || {},
       active: product.active,
@@ -188,6 +193,7 @@ export default function AdminProducts() {
       description: form.description.trim() || null,
       base_price: parseFloat(form.base_price),
       category: form.category,
+      event_id: form.event_id || null,
       sizes: form.sizes,
       size_price_overrides: form.size_price_overrides,
       active: form.active,
@@ -296,6 +302,22 @@ export default function AdminProducts() {
             <textarea id="p-desc" rows={2} value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
+
+          {form.category === 'Special Event Fundraising' && (
+            <div style={{ marginBottom: 16, padding: '12px 14px', background: 'var(--color-blush)', borderRadius: 'var(--radius)', border: '1px solid var(--color-burgundy)20' }}>
+              <label htmlFor="p-event">Link to Event <span style={{ fontWeight: 400, fontSize: 12, opacity: 0.7 }}>(Special Event Fundraising)</span></label>
+              <select id="p-event" value={form.event_id}
+                onChange={(e) => setForm({ ...form, event_id: e.target.value })}>
+                <option value="">— No specific event —</option>
+                {calendarEvents.map(ev => (
+                  <option key={ev.id} value={ev.id}>
+                    {ev.title}{ev.event_date ? ` (${new Date(ev.event_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})` : ''}
+                  </option>
+                ))}
+              </select>
+              <p style={{ fontSize: 11, opacity: 0.7, margin: '6px 0 0' }}>Linking an event lets customers know which event these shirts are for. Shows on the product page.</p>
+            </div>
+          )}
 
           <div style={{ marginBottom: 16 }}>
             <label>Available Sizes &amp; Optional Price Overrides</label>
