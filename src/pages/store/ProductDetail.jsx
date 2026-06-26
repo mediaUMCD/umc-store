@@ -29,6 +29,7 @@ export default function ProductDetail() {
   const [placement2, setPlacement2] = useState('')
   const [showSecondDesign, setShowSecondDesign] = useState(false)
   const [personalizationText, setPersonalizationText] = useState('')
+  const [personalizationPlacement, setPersonalizationPlacement] = useState('')
   const [showPersonalization, setShowPersonalization] = useState(false)
   const [size, setSize] = useState('')
   const [colorId, setColorId] = useState('')
@@ -182,6 +183,7 @@ export default function ProductDetail() {
       placement2: placement2 || null,
       second_design_price: secondDesignCharge,
       personalization_text: (showPersonalization && personalizationText.trim()) ? personalizationText.trim() : null,
+      personalization_placement: (showPersonalization && personalizationText.trim()) ? personalizationPlacement : null,
       personalization_price: personalizationCharge,
       size,
       color: color ? color.name : '',
@@ -193,7 +195,7 @@ export default function ProductDetail() {
     setJustAdded(true)
     setSize(''); setColorId(''); setDesignId(''); setPlacement('')
     setDesign2Id(''); setPlacement2(''); setShowSecondDesign(false)
-    setPersonalizationText(''); setShowPersonalization(false); setQuantity(1)
+    setPersonalizationText(''); setPersonalizationPlacement(''); setShowPersonalization(false); setQuantity(1)
   }
 
   if (loading) return (
@@ -485,35 +487,34 @@ export default function ProductDetail() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
               <label style={{ fontWeight: 700, fontSize: 15, marginBottom: 0 }}>Add Personalization?</label>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400, cursor: 'pointer', marginBottom: 0 }}>
-                <input
-                  type="checkbox"
-                  checked={showPersonalization}
-                  onChange={(e) => {
-                    setShowPersonalization(e.target.checked)
-                    if (!e.target.checked) setPersonalizationText('')
-                  }}
-                  style={{ width: 'auto' }}
-                />
+                <input type="checkbox" checked={showPersonalization}
+                  onChange={e => { setShowPersonalization(e.target.checked); if (!e.target.checked) { setPersonalizationText(''); setPersonalizationPlacement('') } }}
+                  style={{ width: 'auto' }} />
                 Yes — add personalized text (+${PERSONALIZATION_PRICE.toFixed(2)} per item)
               </label>
             </div>
             <p style={{ fontSize: 12, opacity: 0.65, margin: '0 0 12px 0' }}>
-              Personalization is printed on the <strong>left chest or shoulder</strong> area and can be added alongside a left chest or shoulder design, or on its own.
+              Personalization can be added to the <strong>left chest, shoulder, wrist, or arm</strong> — on its own or alongside a design in the same area.
             </p>
             {showPersonalization && (
-              <div style={{ maxWidth: 400 }}>
-                <label htmlFor="pd-personalization">Your Personalization Text</label>
-                <input
-                  id="pd-personalization"
-                  type="text"
-                  placeholder="e.g. John Smith, Pastor Zach, #42…"
-                  value={personalizationText}
-                  onChange={(e) => setPersonalizationText(e.target.value)}
-                  maxLength={50}
-                />
-                <p style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
-                  {personalizationText.length}/50 characters
-                </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, maxWidth: 560 }}>
+                <div>
+                  <label htmlFor="pd-personalization">Your Personalization Text</label>
+                  <input id="pd-personalization" type="text"
+                    placeholder="e.g. John Smith, Pastor Zach, #42…"
+                    value={personalizationText}
+                    onChange={e => setPersonalizationText(e.target.value)}
+                    maxLength={50} />
+                  <p style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>{personalizationText.length}/50 characters</p>
+                </div>
+                <div>
+                  <label htmlFor="pd-pers-placement">Placement</label>
+                  <select id="pd-pers-placement" value={personalizationPlacement}
+                    onChange={e => setPersonalizationPlacement(e.target.value)}>
+                    <option value="">Choose placement…</option>
+                    {placements.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                  </select>
+                </div>
               </div>
             )}
           </div>

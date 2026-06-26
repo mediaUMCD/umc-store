@@ -294,9 +294,9 @@ function Header() {
           umcdanielson.org · Danielson, CT · Est. 1902
         </div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-        <img src={TEXT_IMG} alt="Bumble Bee Studios" style={{ height: 38, objectFit: 'contain' }} />
-        <img src={BEE_IMG} alt="" style={{ height: 52, objectFit: 'contain' }} />
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+        <img src={BEE_IMG} alt="" style={{ height: 80, objectFit: 'contain' }} />
+        <img src={TEXT_IMG} alt="Bumble Bee Studios" style={{ height: 32, objectFit: 'contain' }} />
       </div>
     </div>
   )

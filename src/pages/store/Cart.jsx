@@ -58,6 +58,7 @@ export default function Cart() {
       placement2: item.placement2 || null,
       second_design_price: item.second_design_price || 0,
       personalization_text: item.personalization_text || null,
+      personalization_placement: item.personalization_placement || null,
       personalization_price: item.personalization_price || 0,
       size: item.size,
       color: item.color,
