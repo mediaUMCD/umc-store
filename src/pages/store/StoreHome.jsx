@@ -57,16 +57,16 @@ export default function StoreHome() {
 
       {/* Hero banner */}
       <div style={{
-        background: 'linear-gradient(180deg, var(--color-wine) 0%, var(--color-burgundy) 100%)',
+        background: 'linear-gradient(135deg, var(--color-wine-dark) 0%, var(--color-burgundy) 100%)',
         color: 'white',
         textAlign: 'center',
         padding: '32px 24px 28px',
         borderBottom: '4px solid var(--color-blush)',
       }}>
-        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 28, fontWeight: 700, margin: '0 0 8px', letterSpacing: '-0.01em' }}>
+        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 28, fontWeight: 700, margin: '0 0 8px', letterSpacing: '-0.01em', color: 'white' }}>
           Support Your Church, Look Great Doing It
         </h1>
-        <p style={{ fontSize: 14, opacity: 0.85, margin: 0, maxWidth: 500, marginInline: 'auto' }}>
+        <p style={{ fontSize: 14, opacity: 0.85, margin: 0, maxWidth: 500, marginInline: 'auto', color: 'white' }}>
           Orders are collected here and <strong>paid for in person</strong> (cash, check, or Venmo) at pickup — no online payment required.
         </p>
       </div>
