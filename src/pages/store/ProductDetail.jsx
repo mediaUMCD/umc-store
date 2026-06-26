@@ -34,6 +34,7 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1)
   const [error, setError] = useState('')
   const [justAdded, setJustAdded] = useState(false)
+  const [zoomedDesign, setZoomedDesign] = useState(null) // lightbox
 
   useEffect(() => {
     async function loadData() {
@@ -83,11 +84,14 @@ export default function ProductDetail() {
         allowedPlacementIds: placementsByDesign[d.id] || [],
         publicUrl: supabase.storage.from(STORAGE_BUCKET).getPublicUrl(d.image_path).data.publicUrl,
       })))
-      setColors((colorsRes.data || []).map((c) => ({
+      const loadedColors = (colorsRes.data || []).map((c) => ({
         ...c,
         photoUrl: photoByColorId[c.id] || null,
         availableSizes: sizesByColorId[c.id] || null,
-      })))
+      }))
+      setColors(loadedColors)
+      // Auto-select first color so product image shows on load
+      if (loadedColors.length > 0) setColorId(loadedColors[0].id)
       setPlacements(placementsRes.data || [])
       setLoading(false)
     }
@@ -264,7 +268,8 @@ export default function ProductDetail() {
                 <option value="">Choose size…</option>
                 {availableSizes.map((s) => {
                   const override = product.size_price_overrides?.[s]
-                  return <option key={s} value={s}>{s}{override !== undefined ? ` (+$${Number(override).toFixed(2)})` : ''}</option>
+                  const diff = override !== undefined ? Number(override) - Number(product.base_price) : 0
+                  return <option key={s} value={s}>{s}{diff > 0 ? ` (+$${diff.toFixed(2)})` : diff < 0 ? ` (-$${Math.abs(diff).toFixed(2)})` : ''}</option>
                 })}
               </select>
               {colorId && selectedColor?.availableSizes && (
@@ -277,6 +282,45 @@ export default function ProductDetail() {
         {/* Bottom: designs + placement + order */}
         <div className="card" style={{ marginBottom: 24 }}>
 
+          {/* Design lightbox */}
+          {zoomedDesign && (
+            <div
+              onClick={() => setZoomedDesign(null)}
+              style={{
+                position: 'fixed', inset: 0, zIndex: 1000,
+                background: 'rgba(0,0,0,0.75)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'zoom-out',
+              }}
+            >
+              <div
+                onClick={e => e.stopPropagation()}
+                style={{
+                  background: 'white', borderRadius: 12, padding: 24,
+                  maxWidth: '90vw', maxHeight: '90vh',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
+                  boxShadow: '0 8px 40px rgba(0,0,0,0.4)',
+                }}
+              >
+                <img
+                  src={zoomedDesign.publicUrl}
+                  alt={zoomedDesign.name}
+                  style={{ maxWidth: '70vw', maxHeight: '65vh', objectFit: 'contain' }}
+                />
+                <div style={{ textAlign: 'center' }}>
+                  <strong style={{ fontSize: 16 }}>{zoomedDesign.name}</strong>
+                </div>
+                <button
+                  onClick={() => setZoomedDesign(null)}
+                  className="btn btn-secondary"
+                  style={{ alignSelf: 'center' }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* First design picker */}
           {designs.length > 0 && (
             <div style={{ marginBottom: 24 }}>
@@ -285,20 +329,35 @@ export default function ProductDetail() {
                 {designs.map((d) => {
                   const selected = designId === d.id
                   return (
-                    <button type="button" key={d.id} onClick={() => { setDesignId(d.id); setPlacement('') }}
-                      style={{
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '10px 8px',
-                        border: selected ? '2px solid var(--color-wine)' : '1px solid var(--color-silver)',
-                        borderRadius: 'var(--radius)',
-                        background: selected ? 'var(--color-blush)' : 'white',
-                        boxShadow: selected ? '0 2px 8px rgba(61,0,38,0.15)' : '0 1px 3px rgba(0,0,0,0.06)',
-                        cursor: 'pointer', transition: 'all 0.15s ease', textAlign: 'center',
-                      }}>
-                      <div style={{ width: 64, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <img src={d.publicUrl} alt={d.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                      </div>
-                      <span style={{ fontSize: 11, lineHeight: 1.3, color: selected ? 'var(--color-wine)' : 'inherit', fontWeight: selected ? 600 : 400, wordBreak: 'break-word', width: '100%' }}>{d.name}</span>
-                    </button>
+                    <div key={d.id} style={{ position: 'relative' }}>
+                      <button type="button" onClick={() => { setDesignId(d.id); setPlacement('') }}
+                        style={{
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '10px 8px',
+                          width: '100%',
+                          border: selected ? '2px solid var(--color-wine)' : '1px solid var(--color-silver)',
+                          borderRadius: 'var(--radius)',
+                          background: selected ? 'var(--color-blush)' : 'white',
+                          boxShadow: selected ? '0 2px 8px rgba(61,0,38,0.15)' : '0 1px 3px rgba(0,0,0,0.06)',
+                          cursor: 'pointer', transition: 'all 0.15s ease', textAlign: 'center',
+                        }}>
+                        <div style={{ width: 64, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <img src={d.publicUrl} alt={d.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                        </div>
+                        <span style={{ fontSize: 11, lineHeight: 1.3, color: selected ? 'var(--color-wine)' : 'inherit', fontWeight: selected ? 600 : 400, wordBreak: 'break-word', width: '100%' }}>{d.name}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setZoomedDesign(d) }}
+                        title="Zoom"
+                        style={{
+                          position: 'absolute', top: 4, right: 4,
+                          background: 'rgba(255,255,255,0.9)', border: '1px solid var(--color-silver)',
+                          borderRadius: 4, width: 22, height: 22, fontSize: 12,
+                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          lineHeight: 1, padding: 0,
+                        }}
+                      >🔍</button>
+                    </div>
                   )
                 })}
               </div>
@@ -349,20 +408,35 @@ export default function ProductDetail() {
                 {designs.filter(d => d.id !== designId).map((d) => {
                   const selected = design2Id === d.id
                   return (
-                    <button type="button" key={d.id} onClick={() => { setDesign2Id(d.id); setPlacement2('') }}
-                      style={{
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '10px 8px',
-                        border: selected ? '2px solid var(--color-wine)' : '1px solid var(--color-silver)',
-                        borderRadius: 'var(--radius)',
-                        background: selected ? 'var(--color-blush)' : 'white',
-                        boxShadow: selected ? '0 2px 8px rgba(61,0,38,0.15)' : '0 1px 3px rgba(0,0,0,0.06)',
-                        cursor: 'pointer', transition: 'all 0.15s ease', textAlign: 'center',
-                      }}>
-                      <div style={{ width: 64, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <img src={d.publicUrl} alt={d.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                      </div>
-                      <span style={{ fontSize: 11, lineHeight: 1.3, color: selected ? 'var(--color-wine)' : 'inherit', fontWeight: selected ? 600 : 400, wordBreak: 'break-word', width: '100%' }}>{d.name}</span>
-                    </button>
+                    <div key={d.id} style={{ position: 'relative' }}>
+                      <button type="button" onClick={() => { setDesign2Id(d.id); setPlacement2('') }}
+                        style={{
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '10px 8px',
+                          width: '100%',
+                          border: selected ? '2px solid var(--color-wine)' : '1px solid var(--color-silver)',
+                          borderRadius: 'var(--radius)',
+                          background: selected ? 'var(--color-blush)' : 'white',
+                          boxShadow: selected ? '0 2px 8px rgba(61,0,38,0.15)' : '0 1px 3px rgba(0,0,0,0.06)',
+                          cursor: 'pointer', transition: 'all 0.15s ease', textAlign: 'center',
+                        }}>
+                        <div style={{ width: 64, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <img src={d.publicUrl} alt={d.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                        </div>
+                        <span style={{ fontSize: 11, lineHeight: 1.3, color: selected ? 'var(--color-wine)' : 'inherit', fontWeight: selected ? 600 : 400, wordBreak: 'break-word', width: '100%' }}>{d.name}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setZoomedDesign(d) }}
+                        title="Zoom"
+                        style={{
+                          position: 'absolute', top: 4, right: 4,
+                          background: 'rgba(255,255,255,0.9)', border: '1px solid var(--color-silver)',
+                          borderRadius: 4, width: 22, height: 22, fontSize: 12,
+                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          lineHeight: 1, padding: 0,
+                        }}
+                      >🔍</button>
+                    </div>
                   )
                 })}
               </div>
