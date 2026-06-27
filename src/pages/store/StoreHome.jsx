@@ -65,6 +65,9 @@ export default function StoreHome() {
         <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 28, fontWeight: 700, margin: '0 0 8px', letterSpacing: '-0.01em', color: 'white' }}>
           Support Your Church, Look Great Doing It
         </h1>
+        <p style={{ fontSize: 20, fontWeight: 800, margin: '0 0 10px', maxWidth: 560, marginInline: 'auto', color: 'white', letterSpacing: '-0.01em', lineHeight: 1.3 }}>
+          Select any item to explore logo designs, colors, and customization options.
+        </p>
         <p style={{ fontSize: 14, margin: 0, maxWidth: 500, marginInline: 'auto', color: 'rgba(255,255,255,0.85)' }}>
           Orders are collected here and <strong style={{ color: 'white' }}>paid for in person</strong> (cash, check, or Venmo) at pickup — no online payment required.
         </p>
