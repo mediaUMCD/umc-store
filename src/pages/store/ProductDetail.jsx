@@ -50,8 +50,8 @@ export default function ProductDetail() {
       let linkedEvent = null
       if (productData.event_id) {
         const { data: evData } = await supabase
-          .from('calendar_events')
-          .select('id, title, event_date, event_end_date, location')
+          .from('events')
+          .select('id, title:event_name, event_date, event_end_date, location')
           .eq('id', productData.event_id)
           .single()
         linkedEvent = evData || null

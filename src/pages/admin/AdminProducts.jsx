@@ -37,7 +37,7 @@ export default function AdminProducts() {
       supabase.from('products').select('*').order('sort_order'),
       supabase.from('colors').select('*').eq('active', true).order('name'),
       supabase.from('product_colors').select('product_id, color_id, image_path, available_sizes'),
-      supabase.from('calendar_events').select('id, title, event_date').order('event_date', { ascending: false }).limit(50),
+      supabase.from('events').select('id, title:event_name, event_date').gte('event_date', new Date(Date.now() - 60*86400000).toISOString().slice(0,10)).order('event_date').limit(100),
     ])
 
     if (productsRes.error) {

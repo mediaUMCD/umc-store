@@ -13,68 +13,36 @@ export default function Cart() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  function generateOrderNumber() {
-    const year = new Date().getFullYear()
-    const random = Math.floor(1000 + Math.random() * 9000)
-    return `ORD-${year}-${random}`
-  }
-
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
     if (cart.length === 0) { setError('Your cart is empty.'); return }
     if (!contact.name.trim()) { setError('Please enter your name.'); return }
     if (!contact.email.trim() && !contact.phone.trim()) {
-      setError('Please provide an email or phone number so we can reach you.'); return
+      setError('Please give an email or phone number so we can reach you.'); return
     }
 
     setSubmitting(true)
-    const orderNumber = generateOrderNumber()
-
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .insert({
-        order_number: orderNumber,
-        customer_name: contact.name.trim(),
-        customer_email: contact.email.trim() || null,
-        customer_phone: contact.phone.trim() || null,
-        notes: contact.notes.trim() || null,
-        total_estimated: total,
-        status: 'new',
-      })
-      .select().single()
-
-    if (orderError) { setError(`Could not submit order: ${orderError.message}`); setSubmitting(false); return }
-
-    const itemRows = cart.map((item) => ({
-      order_id: order.id,
-      product_id: item.product_id,
-      design_id: item.design_id,
-      product_name_snapshot: item.product_name_snapshot,
-      design_name_snapshot: item.design_name_snapshot,
-      placement: item.placement,
-      design2_id: item.design2_id || null,
-      design2_name_snapshot: item.design2_name_snapshot || null,
-      placement2: item.placement2 || null,
-      second_design_price: item.second_design_price || 0,
-      personalization_text: item.personalization_text || null,
-      personalization_placement: item.personalization_placement || null,
-      personalization_price: item.personalization_price || 0,
-      size: item.size,
-      color: item.color,
-      quantity: item.quantity,
-      unit_price: item.unit_price,
-      line_total: item.line_total,
-    }))
-
-    const { error: itemsError } = await supabase.from('order_items').insert(itemRows)
-    if (itemsError) {
-      setError(`Order created but items failed to save: ${itemsError.message}. Please contact the church office.`)
-      setSubmitting(false); return
-    }
+    // The database checks the order and works out the prices itself
+    const { data, error: rpcError } = await supabase.rpc('submit_store_order', {
+      p_customer: { name: contact.name, email: contact.email, phone: contact.phone, notes: contact.notes },
+      p_items: cart.map((item) => ({
+        product_id: item.product_id,
+        size: item.size,
+        color: item.color,
+        quantity: item.quantity,
+        design_id: item.design_id,
+        placement: item.placement,
+        design2_id: item.design2_id || null,
+        placement2: item.placement2 || null,
+        personalization_text: item.personalization_text || null,
+        personalization_placement: item.personalization_placement || null,
+      })),
+    })
+    if (rpcError) { setError(rpcError.message); setSubmitting(false); return }
 
     clearCart()
-    navigate(`/order/confirmation/${order.order_number}`)
+    navigate(`/order/confirmation/${data.order_number}?t=${data.token}`)
   }
 
   return (
@@ -92,61 +60,46 @@ export default function Cart() {
         ) : (
           <form onSubmit={handleSubmit}>
             <div className="card" style={{ marginBottom: 20 }}>
-              <table style={{ marginBottom: 16 }}>
-                <thead>
-                  <tr>
-                    <th>Item</th>
-                    <th>Design(s) &amp; Placement</th>
-                    <th>Size</th>
-                    <th>Color</th>
-                    <th>Qty</th>
-                    <th>Total</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cart.map((item) => (
-                    <tr key={item.cartId}>
-                      <td>{item.product_name_snapshot}</td>
-                      <td>
-                        <div>
-                          {item.design_name_snapshot || '—'}
-                          {item.placement && <span style={{ fontSize: 12, opacity: 0.65 }}> — {item.placement}</span>}
-                        </div>
-                        {item.design2_name_snapshot && (
-                          <div style={{ marginTop: 4, paddingTop: 4, borderTop: '1px solid var(--color-silver-light)' }}>
-                            <span style={{ fontSize: 12, color: 'var(--color-wine)', fontWeight: 600 }}>+2nd: </span>
-                            {item.design2_name_snapshot}
-                            {item.placement2 && <span style={{ fontSize: 12, opacity: 0.65 }}> — {item.placement2}</span>}
-                            <span style={{ fontSize: 12, opacity: 0.65 }}> (+${Number(item.second_design_price).toFixed(2)}/ea)</span>
-                          </div>
-                        )}
-                        {item.personalization_text && (
-                          <div style={{ marginTop: 4, paddingTop: 4, borderTop: '1px solid var(--color-silver-light)' }}>
-                            <span style={{ fontSize: 12, color: 'var(--color-wine)', fontWeight: 600 }}>Personalization: </span>
-                            <span style={{ fontSize: 12 }}>&ldquo;{item.personalization_text}&rdquo;</span>
-                            <span style={{ fontSize: 12, opacity: 0.65 }}> (+${Number(item.personalization_price).toFixed(2)}/ea)</span>
-                          </div>
-                        )}
-                      </td>
-                      <td>{item.size}</td>
-                      <td>{item.color || '—'}</td>
-                      <td>
-                        <input type="number" min="1" value={item.quantity}
-                          onChange={(e) => updateQuantity(item.cartId, Math.max(1, Number(e.target.value)))}
-                          style={{ width: 60, padding: '4px 6px' }} />
-                      </td>
-                      <td>${item.line_total.toFixed(2)}</td>
-                      <td>
-                        <button type="button" onClick={() => removeItem(item.cartId)}
-                          style={{ background: 'none', border: 'none', color: 'var(--color-danger)', fontWeight: 700 }}>
-                          Remove
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="cart-list">
+                {cart.map((item) => (
+                  <div key={item.cartId} className="cart-item">
+                    <div className="cart-item-top">
+                      <div>
+                        <div className="cart-item-name">{item.product_name_snapshot}</div>
+                        <div className="cart-item-sub">{[item.color, item.size && `Size ${item.size}`].filter(Boolean).join(' · ')}</div>
+                      </div>
+                      <div className="cart-item-price">${item.line_total.toFixed(2)}</div>
+                    </div>
+                    {item.design_name_snapshot && (
+                      <div className="cart-item-line">
+                        <span className="cart-tag">Design</span> {item.design_name_snapshot}
+                        {item.placement && <span className="cart-muted"> — {item.placement}</span>}
+                      </div>
+                    )}
+                    {item.design2_name_snapshot && (
+                      <div className="cart-item-line">
+                        <span className="cart-tag">2nd design</span> {item.design2_name_snapshot}
+                        {item.placement2 && <span className="cart-muted"> — {item.placement2}</span>}
+                        <span className="cart-muted"> (+${Number(item.second_design_price).toFixed(2)} each)</span>
+                      </div>
+                    )}
+                    {item.personalization_text && (
+                      <div className="cart-item-line">
+                        <span className="cart-tag">Personalized</span> &ldquo;{item.personalization_text}&rdquo;
+                        <span className="cart-muted"> (+${Number(item.personalization_price).toFixed(2)} each)</span>
+                      </div>
+                    )}
+                    <div className="cart-item-actions">
+                      <div className="qty">
+                        <button type="button" aria-label="One fewer" onClick={() => updateQuantity(item.cartId, Math.max(1, item.quantity - 1))}>−</button>
+                        <span aria-live="polite">{item.quantity}</span>
+                        <button type="button" aria-label="One more" onClick={() => updateQuantity(item.cartId, item.quantity + 1)}>+</button>
+                      </div>
+                      <button type="button" className="cart-remove" onClick={() => removeItem(item.cartId)}>Remove</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
               <p style={{ textAlign: 'right', fontWeight: 700, fontSize: 18, color: 'var(--color-wine-dark)' }}>
                 Estimated Total: ${total.toFixed(2)}
               </p>
@@ -159,7 +112,7 @@ export default function Cart() {
                 <input id="c-name" type="text" value={contact.name}
                   onChange={(e) => setContact({ ...contact, name: e.target.value })} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+              <div className="two-col" style={{ marginBottom: 14 }}>
                 <div>
                   <label htmlFor="c-email">Email</label>
                   <input id="c-email" type="email" value={contact.email}
@@ -180,7 +133,7 @@ export default function Cart() {
 
             <div className="card" style={{ background: 'var(--color-blush)', marginBottom: 20 }}>
               <p style={{ margin: 0, fontSize: 14 }}>
-                <strong>Payment is handled in person</strong> (cash, check, or Venmo) when you pick up your order. This form does not charge any payment method.
+                <strong>You pay at pickup</strong> (cash, check or Venmo). Corissa will be in touch to arrange pickup. Nothing is charged now.
               </p>
             </div>
 
