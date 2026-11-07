@@ -16,13 +16,10 @@ export default function RequireAdmin({ children }) {
         return
       }
 
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single()
+      // Store staff = admin or fundraising role (One Board → User Management)
+      const { data: ok, error } = await supabase.rpc('is_store_staff')
 
-      if (error || !profile || profile.role !== 'admin') {
+      if (error || !ok) {
         if (isMounted) setStatus('unauthorized')
         return
       }

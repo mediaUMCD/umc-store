@@ -32,7 +32,7 @@ export default function AdminLayout({ children, title }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
           <span style={{ fontFamily: 'var(--font-heading)', fontSize: 20 }}>UMCD Store Admin</span>
-          <nav style={{ display: 'flex', gap: 16 }}>
+          <nav className="admin-nav" style={{ display: 'flex', gap: 16 }}>
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.path}

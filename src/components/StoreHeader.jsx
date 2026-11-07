@@ -6,45 +6,24 @@ const PHOENIX = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAYAAACOE
 export default function StoreHeader() {
   const { itemCount } = useCart()
   return (
-    <header style={{
-      background: 'linear-gradient(135deg, #3D0026 0%, #7A0047 100%)',
-      color: 'white',
-      padding: '14px 28px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      gap: 12,
-      boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
-    }}>
-      <Link to="/" style={{ textDecoration: 'none', color: 'white', display: 'flex', alignItems: 'center', gap: 14 }}>
-        <img src={PHOENIX} alt="UMCD" style={{ height: 52, width: 52, objectFit: 'contain', flexShrink: 0 }} />
-        <div>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 22, lineHeight: 1.1, fontWeight: 700, letterSpacing: '-0.01em' }}>
-            UMCD Church Store
-          </div>
-          <div style={{ fontSize: 12, opacity: 0.75, marginTop: 2 }}>United Methodist Church of Danielson</div>
-        </div>
-      </Link>
-
-      <Link to="/cart" style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        textDecoration: 'none', color: 'white',
-        background: 'rgba(255,255,255,0.15)',
-        border: '1px solid rgba(255,255,255,0.25)',
-        padding: '9px 18px', borderRadius: 'var(--radius)', fontWeight: 600,
-        backdropFilter: 'blur(4px)',
-      }}>
-        <span aria-hidden="true">🛒</span>
-        <span>Cart</span>
-        {itemCount > 0 && (
-          <span style={{
-            background: 'white', color: 'var(--color-wine-dark)',
-            borderRadius: '999px', minWidth: 22, height: 22,
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 12, fontWeight: 700, padding: '0 6px',
-          }}>{itemCount}</span>
-        )}
-      </Link>
+    <header className="store-header">
+      <div className="store-header-row">
+        <Link to="/" className="store-brand">
+          <img src={PHOENIX} alt="" />
+          <span>
+            <span className="store-brand-name">Church Store</span>
+            <span className="store-brand-sub">United Methodist Church of Danielson</span>
+          </span>
+        </Link>
+        <Link to="/cart" className="store-cart" aria-label={`Cart, ${itemCount} item${itemCount === 1 ? '' : 's'}`}>
+          <span aria-hidden="true">🛒</span>
+          <span className="store-cart-label">Cart</span>
+          {itemCount > 0 && <span className="store-cart-count">{itemCount}</span>}
+        </Link>
+      </div>
+      <div className="rainbow" aria-hidden="true">
+        {['#E8443A', '#F39C34', '#F4D03F', '#3FBF7F', '#3A8EE8', '#8E44AD'].map(c => <span key={c} style={{ background: c }} />)}
+      </div>
     </header>
   )
 }

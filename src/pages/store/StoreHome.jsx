@@ -55,40 +55,19 @@ export default function StoreHome() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <StoreHeader />
 
-      {/* Hero banner */}
-      <div style={{
-        background: 'linear-gradient(135deg, #3D0026 0%, #7A0047 100%)',
-        textAlign: 'center',
-        padding: '32px 24px 28px',
-        borderBottom: '4px solid #F7E6F0',
-      }}>
-        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 28, fontWeight: 700, margin: '0 0 8px', letterSpacing: '-0.01em', color: 'white' }}>
-          Support Your Church, Look Great Doing It
-        </h1>
-        <p style={{ fontSize: 20, fontWeight: 800, margin: '0 0 10px', maxWidth: 560, marginInline: 'auto', color: 'white', letterSpacing: '-0.01em', lineHeight: 1.3 }}>
-          Select any item to explore logo designs, colors, and customization options.
-        </p>
-        <p style={{ fontSize: 14, margin: 0, maxWidth: 500, marginInline: 'auto', color: 'rgba(255,255,255,0.85)' }}>
-          Orders are collected here and <strong style={{ color: 'white' }}>paid for in person</strong> (cash, check, or Venmo) at pickup — no online payment required.
-        </p>
-      </div>
+      <section className="store-hero">
+        <h1>Support your church, look great doing it</h1>
+        <p>Tap any item to choose a design, color and size.</p>
+        <p className="store-hero-note">No online payment: you pay at pickup (cash, check or Venmo).</p>
+      </section>
 
       <div className="container" style={{ flex: 1 }}>
         {/* Category filters */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, margin: '24px 0 20px' }}>
+        <div className="chip-row">
           {CATEGORIES.map(cat => {
             const active = activeCategory === cat
             return (
-              <button key={cat} onClick={() => setActiveCategory(cat)} style={{
-                padding: '8px 18px', borderRadius: 999,
-                border: active ? 'none' : '1px solid var(--color-silver)',
-                background: active ? 'var(--color-wine)' : 'white',
-                color: active ? 'white' : 'var(--color-wine)',
-                fontWeight: active ? 700 : 400,
-                fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
-                transition: 'all 0.15s ease',
-                boxShadow: active ? '0 2px 8px rgba(61,0,38,0.2)' : 'none',
-              }}>{cat}</button>
+              <button key={cat} onClick={() => setActiveCategory(cat)} className={`chip${active ? ' chip-on' : ''}`}>{cat}</button>
             )
           })}
         </div>
@@ -98,31 +77,25 @@ export default function StoreHome() {
             <p>{activeCategory === 'All Products' ? 'No items available right now. Check back soon!' : 'No items in this category yet.'}</p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24, paddingBottom: 40 }}>
+          <div className="product-grid">
             {filtered.map(product => (
               <Link key={product.id} to={'/product/' + product.id} style={{ textDecoration: 'none', color: 'inherit' }}>
-                <div className="card" style={{ overflow: 'hidden', transition: 'box-shadow 0.15s', cursor: 'pointer' }}
-                  onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 20px rgba(61,0,38,0.15)'}
-                  onMouseLeave={e => e.currentTarget.style.boxShadow = ''}>
-                  <div style={{
-                    height: 220, background: '#f8f0f5',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    borderRadius: 'var(--radius)', overflow: 'hidden', marginBottom: 12,
-                  }}>
+                <div className="card product-card">
+                  <div className="product-thumb">
                     {previewImages[product.id]
-                      ? <img src={previewImages[product.id]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      ? <img src={previewImages[product.id]} alt={product.name} />
                       : <span style={{ fontSize: 48, opacity: 0.3 }}>👕</span>
                     }
                   </div>
-                  <div style={{ padding: '0 4px 4px' }}>
+                  <div className="product-info">
                     {product.category && (
-                      <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-burgundy)', marginBottom: 4 }}>
+                      <div className="product-cat">
                         {product.category}
                       </div>
                     )}
-                    <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{product.name}</div>
-                    {product.description && <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 8 }}>{product.description}</div>}
-                    <div style={{ fontWeight: 700, color: 'var(--color-wine)', fontSize: 18 }}>
+                    <div className="product-name">{product.name}</div>
+                    {product.description && <div className="product-desc">{product.description}</div>}
+                    <div className="product-price">
                       ${Number(product.base_price).toFixed(2)}+
                     </div>
                   </div>

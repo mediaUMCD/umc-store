@@ -25,14 +25,11 @@ export default function AdminLogin() {
       return
     }
 
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', data.user.id)
-      .single()
+    // Store staff = admin or fundraising role (One Board → User Management)
+    const { data: ok, error: roleError } = await supabase.rpc('is_store_staff')
 
-    if (profileError || !profile || profile.role !== 'admin') {
-      setError('This account does not have admin access.')
+    if (roleError || !ok) {
+      setError('This account can\'t manage the store. Ask Corissa to tick "fundraising" for you in One Board → User Management.')
       await supabase.auth.signOut()
       setLoading(false)
       return

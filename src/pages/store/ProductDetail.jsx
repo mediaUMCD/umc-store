@@ -132,6 +132,11 @@ export default function ProductDetail() {
     if (allowed2.length > 0 && !allowed2.find(p => p.name === placement2)) setPlacement2('')
   }, [design2Id])
 
+// Standard size order, so sizes always read small → large
+const SIZE_ORDER = ['YOUTH-XS', 'YOUTH-S', 'YOUTH-M', 'YOUTH-L', 'YOUTH-XL', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL']
+const sizeRank = (s) => { const i = SIZE_ORDER.findIndex(x => String(s).toUpperCase().startsWith(x) && !(x === 'S' && /^S[A-Z]/i.test(s))); return i < 0 ? 99 : i }
+const sortSizes = (list) => [...list].sort((a, b) => sizeRank(a) - sizeRank(b))
+
   function getAvailableSizes() {
     if (!colorId) return product?.sizes || []
     const selectedColor = colors.find((c) => c.id === colorId)
@@ -215,7 +220,7 @@ export default function ProductDetail() {
   const selectedColor = colors.find((c) => c.id === colorId)
   const selectedDesign = designs.find((d) => d.id === designId)
   const selectedDesign2 = designs.find((d) => d.id === design2Id)
-  const availableSizes = getAvailableSizes()
+  const availableSizes = sortSizes(getAvailableSizes())
   const availablePlacements = getPlacementsForDesign(selectedDesign)
   const availablePlacements2 = getPlacementsForDesign(selectedDesign2)
 
@@ -226,7 +231,7 @@ export default function ProductDetail() {
         <div style={{ marginBottom: 16 }}><Link to="/">← Back to Store</Link></div>
 
         {/* Top: image + color/size */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'start', marginBottom: 32 }}>
+        <div className="pd-top">
           <div>
             <div className="card" style={{
               aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -266,24 +271,14 @@ export default function ProductDetail() {
             {colors.length > 0 && (
               <div style={{ marginBottom: 20 }}>
                 <label style={{ display: 'block', marginBottom: 8 }}>Color</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                <div className="swatch-row">
                   {colors.map((c) => {
                     const selected = colorId === c.id
                     return (
                       <button key={c.id} type="button" onClick={() => { setColorId(c.id); setSize('') }} title={c.name}
-                        style={{
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-                          padding: 8, width: 90,
-                          border: selected ? '2px solid var(--color-wine)' : '1px solid var(--color-silver)',
-                          borderRadius: 'var(--radius)',
-                          background: selected ? 'var(--color-blush)' : 'white',
-                          boxShadow: selected ? '0 2px 8px rgba(61,0,38,0.15)' : '0 1px 3px rgba(0,0,0,0.06)',
-                          cursor: 'pointer', transition: 'all 0.15s ease',
-                        }}>
-                        {c.photoUrl
-                          ? <img src={c.photoUrl} alt={c.name} style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6 }} />
-                          : <span style={{ width: 60, height: 60, borderRadius: 6, background: c.hex_value || '#ccc', border: '1px solid var(--color-silver)', display: 'block' }} />}
-                        <span style={{ fontSize: 11, lineHeight: 1.3, textAlign: 'center', color: selected ? 'var(--color-wine)' : 'inherit', fontWeight: selected ? 600 : 400, wordBreak: 'break-word', width: '100%' }}>{c.name}</span>
+                        className={`swatch${selected ? ' swatch-on' : ''}`} aria-pressed={selected}>
+                        <span className="swatch-dot" style={{ background: c.hex_value || '#ccc' }} />
+                        <span className="swatch-name">{c.name}</span>
                       </button>
                     )
                   })}
@@ -291,18 +286,22 @@ export default function ProductDetail() {
               </div>
             )}
 
-            <div style={{ marginBottom: 20, maxWidth: 280 }}>
-              <label htmlFor="pd-size">Size</label>
-              <select id="pd-size" value={size} onChange={(e) => setSize(e.target.value)}>
-                <option value="">Choose size…</option>
+            <div style={{ marginBottom: 20 }}>
+              <label id="pd-size-label" style={{ display: 'block', marginBottom: 8 }}>Size{size ? `: ${size}` : ''}</label>
+              <div className="size-row" role="group" aria-labelledby="pd-size-label">
                 {availableSizes.map((s) => {
                   const override = product.size_price_overrides?.[s]
-                  const diff = override !== undefined ? Number(override) - Number(product.base_price) : 0
-                  return <option key={s} value={s}>{s}{diff > 0 ? ` (+$${diff.toFixed(2)})` : diff < 0 ? ` (-$${Math.abs(diff).toFixed(2)})` : ''}</option>
+                  const diff = override !== undefined && override !== '' ? Number(override) - Number(product.base_price) : 0
+                  return (
+                    <button key={s} type="button" className={`size-btn${size === s ? ' size-on' : ''}`} aria-pressed={size === s} onClick={() => setSize(s)}>
+                      {s.replace('YOUTH-', 'Youth ')}
+                      {diff > 0 && <small>+${diff.toFixed(0)}</small>}
+                    </button>
+                  )
                 })}
-              </select>
+              </div>
               {colorId && selectedColor?.availableSizes && (
-                <p style={{ fontSize: 11, color: 'var(--color-wine)', marginTop: 4 }}>Showing sizes available in {selectedColor.name}</p>
+                <p style={{ fontSize: 12, color: 'var(--color-wine)', marginTop: 6 }}>Showing sizes available in {selectedColor.name}</p>
               )}
             </div>
           </div>
@@ -520,23 +519,24 @@ export default function ProductDetail() {
           </div>
 
           {/* Quantity + cart */}
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
-            <div style={{ maxWidth: 120 }}>
-              <label htmlFor="pd-qty">Quantity</label>
-              <input id="pd-qty" type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+          {error && <p role="alert" style={{ color: 'var(--color-danger)', fontSize: 15, margin: '0 0 12px', fontWeight: 600 }}>{error}</p>}
+          {justAdded && <p role="status" style={{ color: 'var(--color-success)', fontSize: 15, margin: '0 0 12px', fontWeight: 700 }}>✓ Added to your cart!</p>}
+          <div className="pd-actions">
+            <div className="qty">
+              <button type="button" aria-label="One fewer" onClick={() => setQuantity(q => Math.max(1, Number(q) - 1))}>−</button>
+              <span aria-live="polite">{quantity}</span>
+              <button type="button" aria-label="One more" onClick={() => setQuantity(q => Number(q) + 1)}>+</button>
             </div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', paddingBottom: 2 }}>
-              <button type="button" className="btn btn-primary" style={{ padding: '12px 24px', fontSize: 15 }} onClick={handleAddToCart}>
+            <div className="pd-action-btns">
+              <button type="button" className="btn btn-primary" onClick={handleAddToCart}>
                 Add to Cart
               </button>
-              <button type="button" className="btn btn-secondary" style={{ padding: '12px 24px', fontSize: 15 }} onClick={() => navigate('/cart')}>
+              <button type="button" className="btn btn-secondary" onClick={() => navigate('/cart')}>
                 View Cart
               </button>
             </div>
           </div>
 
-          {error && <p style={{ color: 'var(--color-danger)', fontSize: 14, marginTop: 12 }}>{error}</p>}
-          {justAdded && <p style={{ color: 'var(--color-success)', fontSize: 14, marginTop: 12, fontWeight: 600 }}>Added to cart!</p>}
         </div>
       </div>
       <StoreFooter />
