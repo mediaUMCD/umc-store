@@ -20,42 +20,32 @@ export default function AdminLayout({ children, title }) {
 
   return (
     <div style={{ minHeight: '100vh' }}>
-      <header style={{
-        background: 'var(--color-wine-dark)',
-        color: 'white',
-        padding: '16px 24px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: 12,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: 'var(--font-heading)', fontSize: 20 }}>UMCD Store Admin</span>
-          <nav className="admin-nav" style={{ display: 'flex', gap: 16 }}>
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                style={{
-                  color: 'white',
-                  opacity: location.pathname === item.path ? 1 : 0.7,
-                  fontWeight: location.pathname === item.path ? 700 : 400,
-                  textDecoration: 'none',
-                  fontSize: 14,
-                }}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+      <header className="store-header">
+        <div className="store-header-row">
+          <Link to="/admin" className="store-brand">
+            <img src="/icon-192x192.png" alt="" />
+            <span>
+              <span className="store-brand-name">Store Staff</span>
+              <span className="store-brand-sub">Church Store · Orders, products and designs</span>
+            </span>
+          </Link>
+          <button onClick={handleLogout} className="staff-signout">Sign out</button>
         </div>
-        <button onClick={handleLogout} className="btn btn-secondary" style={{ padding: '6px 14px', fontSize: 13 }}>
-          Sign Out
-        </button>
+        <nav className="staff-nav" aria-label="Store staff">
+          {NAV_ITEMS.map((item) => (
+            <Link key={item.path} to={item.path}
+              className={`chip${location.pathname === item.path ? ' chip-on' : ''}`}>
+              {item.label}
+            </Link>
+          ))}
+          <a href="/" className="chip" target="_blank" rel="noreferrer">View store ↗</a>
+        </nav>
+        <div className="rainbow" aria-hidden="true">
+          {['#E8443A', '#F39C34', '#F4D03F', '#3FBF7F', '#3A8EE8', '#8E44AD'].map(c => <span key={c} style={{ background: c }} />)}
+        </div>
       </header>
-      <div className="container">
-        {title && <h2 style={{ marginTop: 24 }}>{title}</h2>}
+      <div className="container staff-main">
+        {title && <h2 style={{ marginTop: 20 }}>{title}</h2>}
         {children}
       </div>
     </div>

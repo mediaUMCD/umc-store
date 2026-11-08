@@ -233,3 +233,20 @@ html, body { overflow-x: hidden; }
 @media (max-width: 700px) {
   .card table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
+
+/* ── Store staff pages ─────────────────────────────────────── */
+.staff-signout { background: none; border: 1px solid var(--color-silver); border-radius: 999px; min-height: 40px; padding: 0 14px; color: var(--color-wine); font-weight: 700; font-size: 14px; flex: none; }
+.staff-nav { display: flex; gap: 8px; overflow-x: auto; padding: 0 16px 10px; max-width: 1100px; margin: 0 auto; }
+.staff-nav .chip { display: inline-flex; align-items: center; text-decoration: none; }
+@media (max-width: 700px) {
+  /* forms: put side-by-side boxes on top of each other */
+  .staff-main div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+  /* tables become stacked cards */
+  .staff-main .card table, .staff-main table { display: block; overflow: visible; }
+  .staff-main thead { display: none; }
+  .staff-main tbody { display: block; }
+  .staff-main tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; border-bottom: 1px solid var(--color-silver-light); padding: 10px 0; }
+  .staff-main td { display: block; border: none !important; padding: 2px 0 !important; }
+  .staff-main td:first-child { flex-basis: 100%; font-weight: 700; color: var(--color-wine-dark); }
+  .staff-main h1, .staff-main h2 { font-size: 24px; }
+}
